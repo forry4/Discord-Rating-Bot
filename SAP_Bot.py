@@ -154,64 +154,75 @@ async def members(ctx):
 #submit new lobby results to spreadsheet
 @bot.command()
 async def submit(ctx, *message):
-    #get name of user submitting
-    username=ctx.author.name
-    #get current gameID
-    gameID = int(getGameID())+1
-    #check to see if formatting is valid
-    try:
-        await ctx.channel.send(f'Thank you {username} for submitting gameID {gameID}!')
-        #convert tuple to list
-        message = list(message)
-        print(message)
-        #open csv file to append new data
-        with open('ranking.csv', 'a', newline='') as f_object:
-            writer_object = writer(f_object)
-            #keep track of players in the lobby
-            currentPlayers=[]
-            for line in message:
-                line = line.split(':')
-                currentPlayers.append(line[0])
-                #put gameID into second position
-                line.insert(1,gameID)
-                print(line)
-                #append line to csv file
-                writer_object.writerow(line)
-            f_object.close()
-    except:
-        #catch error
-        await ctx.channel.send(f'Error submitting gameID {gameID}!')
-    #add/remove role to members above/below 30 elo threshold
-    players = getPlayers()
-    for player in currentPlayers:
-        for member in ctx.guild.members:
-            if member.name.lower().startswith(player.lower()):
-                role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-                if players.get(player)<30:
-                    await member.remove_roles(role)
-                else:
-                    await member.add_roles(role)
+    #check that we're in the right channel
+    if ctx.channel.id == 937998936269000704:
+        #get name of user submitting
+        username=ctx.author.name
+        #get current gameID
+        gameID = int(getGameID())+1
+        #check to see if formatting is valid
+        try:
+            await ctx.channel.send(f'Thank you {username} for submitting gameID {gameID}!')
+            #convert tuple to list
+            message = list(message)
+            print(message)
+            #open csv file to append new data
+            with open('ranking.csv', 'a', newline='') as f_object:
+                writer_object = writer(f_object)
+                #keep track of players in the lobby
+                currentPlayers=[]
+                for line in message:
+                    line = line.split(':')
+                    currentPlayers.append(line[0])
+                    #put gameID into second position
+                    line.insert(1,gameID)
+                    print(line)
+                    #append line to csv file
+                    writer_object.writerow(line)
+                f_object.close()
+        except:
+            #catch error
+            await ctx.channel.send(f'Error submitting gameID {gameID}!')
+        #add/remove role to members above/below 30 elo threshold
+        players = getPlayers()
+        for player in currentPlayers:
+            #match the player name with their member object
+            for member in ctx.guild.members:
+                if member.name.lower().startswith(player.lower()):
+                    #get role to add/remove
+                    role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+                    if players.get(player)<30:
+                        await member.remove_roles(role)
+                    else:
+                        await member.add_roles(role)
     return
 
 #check what rank user is
 @bot.command()
 async def myrank(ctx):
+    #get name of user submitting
     username=ctx.author.name
     players = getPlayers()
     i=1
+    #check to see if any player in the system matches the user's name
     for player in players:
         if player == username:
+            #return the matching rank and elo
             await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
             return
         i+=1
+    #inform user if no match was found
     await ctx.channel.send(f'Could not find {username} in the rankings')
     return
 
 #check top 5 players on the leaderboard
 @bot.command()
 async def leaderboard(ctx):
+    if getGameID() == 0:
+        await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
     i=1
+    #list off the first 5 players and their Elos
     for player in players:
         await ctx.channel.send(f'{i}:{player}-{players.get(player)}')
         if i==5:
