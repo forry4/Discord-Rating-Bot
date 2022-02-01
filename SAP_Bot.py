@@ -215,6 +215,39 @@ async def myrank(ctx):
     await ctx.channel.send(f'Could not find {username} in the rankings')
     return
 
+# @bot.command()
+# async def deleteGameID(ctx, message):
+#     gameID = message
+#     with open('ranking.csv', 'a', newline='') as f_object:
+#         writer_object = writer(f_object)
+#         for line in message:
+#             line = line.split(':')
+#             #put gameID into second position
+#             line.insert(1,gameID)
+#             print(line)
+#             #append line to csv file
+#             writer_object.writerow(line)
+#         f_object.close()
+#     return
+
+#check what rank a specified user is
+@bot.command()
+async def findrank(ctx, message):
+    #get name of specified user
+    username=message
+    players = getPlayers()
+    i=1
+    #check to see if any player in the system matches the user's name
+    for player in players:
+        if player == username:
+            #return the matching rank and elo
+            await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
+            return
+        i+=1
+    #inform user if no match was found
+    await ctx.channel.send(f'Could not find {username} in the rankings')
+    return
+
 #check top 5 players on the leaderboard
 @bot.command()
 async def leaderboard(ctx):
