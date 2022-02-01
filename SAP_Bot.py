@@ -140,8 +140,6 @@ def getPlayers():
 
     return players
 
-# TOKEN = 'OTM3Nzc4MTY3OTU4MDc3NDUw.Yfgr-g.x5B2Fqm0AZH1J67gPOtDoamQBRE'
-
 #give proper intents for bot to detect members
 intents = discord.Intents.default()
 intents.members = True
