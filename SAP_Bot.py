@@ -121,22 +121,22 @@ def getPlayers():
 
     #fill dictionary with player ids and their post mu
     for i in range(len(df_truerank)):
-        players[df_truerank['player_id'].iloc[i]] = df_truerank['post_mu'].iloc[i]
+        players[df_truerank['player_id'].iloc[i]] = [df_truerank['post_mu'].iloc[i],df_truerank['post_sigma'].iloc[i]]
 
     #sort and display the dictionary
-    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1], reverse=True)}   
+    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
     print(players)
 
-    #make an array for a weighted raffle
-    raffle = []
+    # #make an array for a weighted raffle
+    # raffle = []
 
-    #fill array with weighted tickets for players
-    for player in players:
-        for i in range(int(players.get(player))*int(players.get(player))):
-            raffle.append(player)
+    # #fill array with weighted tickets for players
+    # for player in players:
+    #     for i in range(int(players.get(player))*int(players.get(player))):
+    #         raffle.append(player)
 
-    #display raffle winner
-    print("raffle winner: " + random.choice(raffle))
+    # #display raffle winner
+    # print("raffle winner: " + random.choice(raffle))
 
     return players
 
@@ -230,23 +230,23 @@ async def replace(ctx, nameOld, nameNew):
             x.close()
     return
 
-#check what rank user is
-@bot.command()
-async def myrank(ctx):
-    #get name of user submitting
-    username=ctx.author.name.replace(" ","")
-    players = getPlayers()
-    i=1
-    #check to see if any player in the system matches the user's name
-    for player in players:
-        if player == username:
-            #return the matching rank and elo
-            await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
-            return
-        i+=1
-    #inform user if no match was found
-    await ctx.channel.send(f'Could not find {username} in the rankings')
-    return
+# #check what rank user is
+# @bot.command()
+# async def myrank(ctx):
+#     #get name of user submitting
+#     username=ctx.author.name.replace(" ","")
+#     players = getPlayers()
+#     i=1
+#     #check to see if any player in the system matches the user's name
+#     for player in players:
+#         if player == username:
+#             #return the matching rank and elo
+#             await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
+#             return
+#         i+=1
+#     #inform user if no match was found
+#     await ctx.channel.send(f'Could not find {username} in the rankings')
+#     return
 
 # @bot.command()
 # async def deleteGameID(ctx, message):
@@ -274,7 +274,15 @@ async def findrank(ctx, message):
     for player in players:
         if player == username:
             #return the matching rank and elo
-            await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
+            playerRank = (f'```\n#  Player       mu     sigma\n{i}   ')
+            for j in range(len(str(i))):
+                playerRank = playerRank[:-1]
+            playerRank += player
+            for j in range(13 - len(player)):
+                playerRank += ' '
+            mu, sigma = players.get(player)
+            playerRank += (f'{"{0:.2f}".format(mu)}  {"{0:.2f}".format(sigma)}\n```')
+            await ctx.channel.send(playerRank)
             return
         i+=1
     #inform user if no match was found
@@ -287,24 +295,23 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n   Player       mu     sigma\n'
-    print(message)
+    message = '```\n#  Player       mu     sigma\n'
     i=1
     #list off the first 5 players and their Elos
     for player in players:
-        if i==10:
-            message += (f'{i} {player}')
-        else:
-            message += (f'{i}  {player}')
-        print(message)
+        message += (f'{i}   ')
+        for j in range(len(str(i))):
+                message = message[:-1]
+        message += player
         for j in range(13 - len(player)):
             message += ' '
-        message += (f'{players.get(player)}\n')
+        mu, sigma = players.get(player)
+        message += (f'{"{0:.2f}".format(mu)}  {"{0:.2f}".format(sigma)}\n')
         if i==10:
-            await ctx.channel.send(message + '\n```')
-            return
+            # await ctx.channel.send(message + '\n```')
+            # return
+            break
         i+=1
-    print(message)
     await ctx.channel.send(message + '\n```')
     return
 
