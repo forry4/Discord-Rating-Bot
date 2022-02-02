@@ -148,8 +148,11 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 #print all members in the server
 @bot.command()
 async def members(ctx):
-    for member in ctx.guild.members:
-        print(member)
+    if ctx.author.id == 292116181312339969:
+        for member in ctx.guild.members:
+            print(member)
+            print(member.id)
+    return
 
 #submit new lobby results to spreadsheet
 @bot.command()
@@ -197,11 +200,32 @@ async def submit(ctx, *message):
                         await member.add_roles(role)
     return
 
+@bot.command()
+async def replace(ctx, nameOld, nameNew):
+    if ctx.author.id == 292116181312339969:
+        # reading the CSV file
+        with open("ranking.csv", "r") as text:
+
+            #join() method combines all contents of 
+            # csvfile.csv and formed as a string
+            text = ''.join([i for i in text]) 
+            
+            # search and replace the contents
+            text = text.replace(nameOld, nameNew)
+            
+            # output.csv is the output file opened in write mode
+            x = open("ranking.csv","w")
+            
+            # all the replaced text is written in the output.csv file
+            x.writelines(text)
+            x.close()
+    return
+
 #check what rank user is
 @bot.command()
 async def myrank(ctx):
     #get name of user submitting
-    username=ctx.author.name
+    username=ctx.author.name.replace(" ","")
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
