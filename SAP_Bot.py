@@ -121,7 +121,7 @@ def getPlayers():
 
     #fill dictionary with player ids and their post mu
     for i in range(len(df_truerank)):
-        players[df_truerank['player_id'].iloc[i]] = [df_truerank['post_mu'].iloc[i],df_truerank['post_sigma'].iloc[i]]
+        players[df_truerank['player_id'].iloc[i]] = [df_truerank['post_mu'].iloc[i], df_truerank['post_sigma'].iloc[i], df_truerank['player_id'].value_counts()[df_truerank['player_id'].iloc[i]]]
 
     #sort and display the dictionary
     players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
@@ -300,14 +300,14 @@ async def searchstats(ctx, message):
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player       μ      σ\n{i}   ')
+            playerRank = (f'```\n#  Player       μ     σ    games\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
             playerRank += player
             for j in range(13 - len(player)):
                 playerRank += ' '
-            mu, sigma = players.get(player)
-            playerRank += (f'{int(mu*100)}  {int(round(sigma, 1)*10)}\n```')
+            mu, sigma, games = players.get(player)
+            playerRank += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
@@ -344,7 +344,7 @@ async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player       μ      σ\n'
+    message = '```\n#  Player       μ     σ    games\n'
     i=1
     #list off the first 5 players and their Elos
     for player in players:
@@ -354,8 +354,8 @@ async def leaderboardstats(ctx):
         message += player
         for j in range(13 - len(player)):
             message += ' '
-        mu, sigma = players.get(player)
-        message += (f'{int(mu*100)}  {int(round(sigma, 1)*10)}\n')
+        mu, sigma, games = players.get(player)
+        message += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n')
         if i==10:
             # await ctx.channel.send(message + '\n```')
             # return
