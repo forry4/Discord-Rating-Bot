@@ -274,7 +274,7 @@ async def findrank(ctx, message):
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player       mu     sigma\n{i}   ')
+            playerRank = (f'```\n#  Player       μ      σ\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
             playerRank += player
@@ -295,7 +295,7 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player       mu     sigma\n'
+    message = '```\n#  Player       μ      σ\n'
     i=1
     #list off the first 5 players and their Elos
     for player in players:
