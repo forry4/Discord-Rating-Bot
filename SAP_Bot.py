@@ -154,6 +154,15 @@ async def members(ctx):
             print(member.id)
     return
 
+# @bot.event()
+# async def on_reaction_add(reaction, user):
+#     if reaction.message.channel.id == 937998936269000704:
+#         embed = reaction.embeds[0]
+#         emoji = reaction.emoji
+#         await reaction.message.channel.send_message('{} has added {} to the message: {}'.format(user.name, reaction.emoji, reaction.message.content))
+
+#     return
+
 #submit new lobby results to spreadsheet
 @bot.command()
 async def submit(ctx, *message):
@@ -278,13 +287,25 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
+    message = '```\n   Player       mu     sigma\n'
+    print(message)
     i=1
     #list off the first 5 players and their Elos
     for player in players:
-        await ctx.channel.send(f'{i}:{player}-{players.get(player)}')
-        if i==5:
+        if i==10:
+            message += (f'{i} {player}')
+        else:
+            message += (f'{i}  {player}')
+        print(message)
+        for j in range(13 - len(player)):
+            message += ' '
+        message += (f'{players.get(player)}\n')
+        if i==10:
+            await ctx.channel.send(message + '\n```')
             return
         i+=1
+    print(message)
+    await ctx.channel.send(message + '\n```')
     return
 
 bot.run(TOKEN)
