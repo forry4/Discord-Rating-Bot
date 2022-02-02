@@ -203,7 +203,7 @@ async def submit(ctx, *message):
                 if member.name.lower().startswith(player.lower()):
                     #get role to add/remove
                     role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-                    if players.get(player)<30:
+                    if players.get(player)[0]<3000:
                         await member.remove_roles(role)
                     else:
                         await member.add_roles(role)
@@ -265,7 +265,33 @@ async def replace(ctx, nameOld, nameNew):
 
 #check what rank a specified user is
 @bot.command()
-async def findrank(ctx, message):
+async def search(ctx, message):
+    #get name of specified user
+    username=message
+    players = getPlayers()
+    i=1
+    #check to see if any player in the system matches the user's name
+    for player in players:
+        if player == username:
+            #return the matching rank and elo
+            playerRank = (f'```\n#  Player       Rating\n{i}   ')
+            for j in range(len(str(i))):
+                playerRank = playerRank[:-1]
+            playerRank += player
+            for j in range(13 - len(player)):
+                playerRank += ' '
+            mu, sigma = players.get(player)
+            playerRank += (f'{int(100*players.get(player)[0])}\n```')
+            await ctx.channel.send(playerRank)
+            return
+        i+=1
+    #inform user if no match was found
+    await ctx.channel.send(f'Could not find {username} in the rankings')
+    return
+
+#check what rank a specified user is and give extended stats
+@bot.command()
+async def searchstats(ctx, message):
     #get name of specified user
     username=message
     players = getPlayers()
@@ -281,7 +307,7 @@ async def findrank(ctx, message):
             for j in range(13 - len(player)):
                 playerRank += ' '
             mu, sigma = players.get(player)
-            playerRank += (f'{"{0:.2f}".format(mu)}  {"{0:.2f}".format(sigma)}\n```')
+            playerRank += (f'{int(mu*100)}  {int(round(sigma, 1)*10)}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
@@ -292,6 +318,29 @@ async def findrank(ctx, message):
 #check top 5 players on the leaderboard
 @bot.command()
 async def leaderboard(ctx):
+    if getGameID() == 0:
+        await ctx.channel.send('No data in the leaderboard')
+    players = getPlayers()
+    message = '```\n#  Player       Rating\n'
+    i=1
+    #list off the first 5 players and their Elos
+    for player in players:
+        message += (f'{i}   ')
+        for j in range(len(str(i))):
+                message = message[:-1]
+        message += player
+        for j in range(13 - len(player)):
+            message += ' '
+        message += (f'{int(100*players.get(player)[0])}\n')
+        if i==10:
+            break
+        i+=1
+    await ctx.channel.send(message + '\n```')
+    return
+
+#check top 5 players on the leaderboard and give extended stats
+@bot.command()
+async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
@@ -306,7 +355,7 @@ async def leaderboard(ctx):
         for j in range(13 - len(player)):
             message += ' '
         mu, sigma = players.get(player)
-        message += (f'{"{0:.2f}".format(mu)}  {"{0:.2f}".format(sigma)}\n')
+        message += (f'{int(mu*100)}  {int(round(sigma, 1)*10)}\n')
         if i==10:
             # await ctx.channel.send(message + '\n```')
             # return
