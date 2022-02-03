@@ -193,8 +193,6 @@ async def on_raw_reaction_remove(payload):
         else:
             print("role not found")
     return
-        
-
 
 #print all members in the server
 @bot.command()
@@ -230,6 +228,7 @@ async def submit(ctx, *message):
         username=ctx.author.name
         #get current gameID
         gameID = int(getGameID())+1
+        players = getPlayers()
         #check to see if formatting is valid
         try:
             #convert tuple to list
@@ -246,7 +245,7 @@ async def submit(ctx, *message):
                     line.append(members.get(int(message[i][3:-1])))
                     line.append(gameID)
                     line.append(message[i+1])
-                    currentPlayers.append(message[i][3:-1])
+                    currentPlayers.append([members.get(int(message[i][3:-1])),players.get(members.get(int(message[i][3:-1])))[0]])
                     #put gameID into second position
                     print(line)
                     #append line to csv file
@@ -257,18 +256,44 @@ async def submit(ctx, *message):
         except:
             #catch error
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
+            return
+        print(currentPlayers)
+        players = getPlayers()
+        print(len(players))
+        playerRank = (f'```\n#  Player       Rating\n')
+        i=1
+        for player in players:
+            for currentPlayer in currentPlayers:
+                if player == currentPlayer[0]:
+                    print(player)
+                    #return the matching rank and elo
+                    playerRank += (f'{i}   ')
+                    for j in range(len(str(i))):
+                        playerRank = playerRank[:-1]
+                    playerRank += player
+                    for k in range(13 - len(player)):
+                        playerRank += ' '
+                    rating = 100*players.get(player)[0]
+                    change = rating-100*currentPlayer[1]
+                    playerRank += (f'{int(rating)}(')
+                    if change > 0:
+                        playerRank += '+'
+                    playerRank += (f'{int(change)})\n')
+                    break                    
+            i+=1
+        await ctx.channel.send(f'{playerRank}\n```')
         #add/remove role to members above/below 30 elo threshold
         players = getPlayers()
-        for player in currentPlayers:
-            #match the player name with their member object
-            for member in ctx.guild.members:
-                if member.name.lower().startswith(player.lower()):
-                    #get role to add/remove
-                    role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-                    if players.get(player)[0]<3000:
-                        await member.remove_roles(role)
-                    else:
-                        await member.add_roles(role)
+        # for player in currentPlayers:
+        #     #match the player name with their member object
+        #     for member in ctx.guild.members:
+        #         if member.name.lower().startswith(player.lower()):
+        #             #get role to add/remove
+        #             role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+        #             if players.get(player)[0]<3000:
+        #                 await member.remove_roles(role)
+        #             else:
+        #                 await member.add_roles(role)
     return
 
 @bot.command()
