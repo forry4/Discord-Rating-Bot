@@ -207,7 +207,7 @@ async def submit(ctx, *message):
     #check that we're in the right channel
     if ctx.channel.id == 937998936269000704:
         #get name of user submitting
-        username=ctx.author.name
+        author=ctx.author.name
         #get current gameID
         gameID = int(getGameID())+1
         players = getPlayers()
@@ -229,20 +229,24 @@ async def submit(ctx, *message):
                     line.append(gameID)
                     line.append(message[i+1])
                     #keep track of players in the lobby
-                    currentPlayers.append([username,players.get(username)[0]])
+                    try:
+                        currentPlayers.append([username,players.get(username)[0]])
+                    except:
+                        currentPlayers.append([username,25])
                     print(line)
                     #append line to csv file
                     writer_object.writerow(line)
                 f_object.close()
             #confirmation message
-            await ctx.channel.send(f'Thank you {username} for submitting gameID {gameID}!')
-        except:
+            await ctx.channel.send(f'Thank you {author} for submitting gameID {gameID}!')
+        except Exception as e:
             #catch error
+            print(e)
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
         #update player rankings
         players = getPlayers()
-        playerRank = (f'```\n#  Player       Rating\n')
+        playerRank = (f'```\n#  Player            Rating\n')
         i=1
         #return info on the rating change for players in the lobby
         for player in players:
@@ -252,8 +256,8 @@ async def submit(ctx, *message):
                     playerRank += (f'{i}   ')
                     for j in range(len(str(i))):
                         playerRank = playerRank[:-1]
-                    playerRank += player
-                    for k in range(13 - len(player)):
+                    playerRank += player[0:min(len(player),12)]
+                    for k in range(17 - min(11,len(player)-1)):
                         playerRank += ' '
                     rating = 100*players.get(player)[0]
                     change = rating-100*currentPlayer[1]
@@ -295,20 +299,18 @@ async def replace(ctx, nameOld, nameNew):
             x.close()
     return
 
-# @bot.command()
-# async def deleteGameID(ctx, message):
-#     gameID = message
-#     with open('ranking.csv', 'a', newline='') as f_object:
-#         writer_object = writer(f_object)
-#         for line in message:
-#             line = line.split(':')
-#             #put gameID into second position
-#             line.insert(1,gameID)
-#             print(line)
-#             #append line to csv file
-#             writer_object.writerow(line)
-#         f_object.close()
-#     return
+#remove a game from the spreadsheet
+@bot.command()
+async def deleteGame(ctx, gameID):
+    #confirm admin is making command
+    if ctx.author.id == 292116181312339969:
+        #make pandas dataframe
+        df = pd.read_csv('ranking.csv')
+        #keep rows where gameID doesnt match input
+        df = df[df['game_id'] != int(gameID)]
+        #save csv without indexes
+        df.to_csv('ranking.csv', index=False)
+    return
 
 #check what rank a specified user is
 @bot.command()
@@ -323,11 +325,11 @@ async def search(ctx, *message):
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player       Rating\n{i}   ')
+            playerRank = (f'```\n#  Player            Rating\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
-            playerRank += player
-            for j in range(13 - len(player)):
+            playerRank += player[0:min(len(player),11)]
+            for j in range(17 - min(11,len(player)-1)):
                 playerRank += ' '
             playerRank += (f'{int(100*players.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
@@ -348,11 +350,11 @@ async def searchstats(ctx, message):
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player       μ     σ    games\n{i}   ')
+            playerRank = (f'```\n#  Player            μ     σ    games\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
-            playerRank += player
-            for j in range(13 - len(player)):
+            playerRank += player[0:min(len(player),12)]
+            for j in range(17 - min(11,len(player)-1)):
                 playerRank += ' '
             mu, sigma, games = players.get(player)
             playerRank += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n```')
@@ -369,15 +371,15 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player       Rating\n'
+    message = '```\n#  Player            Rating\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
                 message = message[:-1]
-        message += player
-        for j in range(13 - len(player)):
+        message += player[0:min(len(player),12)]
+        for j in range(17 - min(11,len(player)-1)):
             message += ' '
         message += (f'{int(100*players.get(player)[0])}\n')
         if i==10:
@@ -392,21 +394,19 @@ async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player       μ     σ    games\n'
+    message = '```\n#  Player            μ     σ    games\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
                 message = message[:-1]
-        message += player
-        for j in range(13 - len(player)):
+        message += player[0:min(len(player),12)]
+        for j in range(17 - min(11,len(player)-1)):
             message += ' '
         mu, sigma, games = players.get(player)
         message += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n')
         if i==10:
-            # await ctx.channel.send(message + '\n```')
-            # return
             break
         i+=1
     await ctx.channel.send(message + '\n```')
