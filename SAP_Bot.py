@@ -145,6 +145,58 @@ intents = discord.Intents.default()
 intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+@bot.event
+async def on_ready():
+    print('Logged in as')
+    print(bot.user.name)
+    print(bot.user.id)
+    print('------')
+
+#gives role to users who react
+@bot.event
+async def on_raw_reaction_add(payload):
+    message_id = payload.message_id
+    if message_id == 938584658105466921:
+        guild_id = payload.guild_id
+        guild = discord.utils.find(lambda g : g.id == guild_id, bot.guilds)
+        if payload.emoji.name == 'monkey':
+            role = discord.utils.get(guild.roles, name='Ranked')
+        else:
+            role = discord.utils.get(guild.roles, name=payload.emoji.name)
+        if role is not None:
+            member = discord.utils.find(lambda m : m.id == payload.user_id, guild.members)
+            if member is not None:
+                await member.add_roles(role)
+                print((f'{role} added to {member}'))
+            else:
+                print("member not found")
+        else:
+            print("role not found")
+    return
+
+@bot.event
+async def on_raw_reaction_remove(payload):
+    message_id = payload.message_id
+    if message_id == 938584658105466921:
+        guild_id = payload.guild_id
+        guild = discord.utils.find(lambda g : g.id == guild_id, bot.guilds)
+        if payload.emoji.name == 'monkey':
+            role = discord.utils.get(guild.roles, name='Ranked')
+        else:
+            role = discord.utils.get(guild.roles, name=payload.emoji.name)
+        if role is not None:
+            member = discord.utils.find(lambda m : m.id == payload.user_id, guild.members)
+            if member is not None:
+                await member.remove_roles(role)
+                print((f'{role} removed from {member}'))
+            else:
+                print("member not found")
+        else:
+            print("role not found")
+    return
+        
+
+
 #print all members in the server
 @bot.command()
 async def members(ctx):
@@ -152,7 +204,14 @@ async def members(ctx):
         for member in ctx.guild.members:
             print(member)
             print(member.id)
-    return
+    return members
+
+#return dictionary of member ids and member names
+def getMembers(ctx):
+    members={}
+    for member in ctx.guild.members:
+        members[member.id]=member.name
+    return members
 
 # @bot.event()
 # async def on_reaction_add(reaction, user):
@@ -174,24 +233,28 @@ async def submit(ctx, *message):
         gameID = int(getGameID())+1
         #check to see if formatting is valid
         try:
-            await ctx.channel.send(f'Thank you {username} for submitting gameID {gameID}!')
             #convert tuple to list
             message = list(message)
             print(message)
+            members = getMembers(ctx)
             #open csv file to append new data
             with open('ranking.csv', 'a', newline='') as f_object:
                 writer_object = writer(f_object)
                 #keep track of players in the lobby
                 currentPlayers=[]
-                for line in message:
-                    line = line.split(':')
-                    currentPlayers.append(line[0])
+                for i in range(0,len(message),2):
+                    line = []
+                    line.append(members.get(int(message[i][3:-1])))
+                    line.append(gameID)
+                    line.append(message[i+1])
+                    currentPlayers.append(message[i][3:-1])
                     #put gameID into second position
-                    line.insert(1,gameID)
                     print(line)
                     #append line to csv file
                     writer_object.writerow(line)
                 f_object.close()
+            #confirmation message
+            await ctx.channel.send(f'Thank you {username} for submitting gameID {gameID}!')
         except:
             #catch error
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
@@ -265,9 +328,10 @@ async def replace(ctx, nameOld, nameNew):
 
 #check what rank a specified user is
 @bot.command()
-async def search(ctx, message):
+async def search(ctx, *message):
     #get name of specified user
-    username=message
+    message = list(message)
+    username = ' '.join(message)
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
@@ -280,7 +344,6 @@ async def search(ctx, message):
             playerRank += player
             for j in range(13 - len(player)):
                 playerRank += ' '
-            mu, sigma = players.get(player)
             playerRank += (f'{int(100*players.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
             return
@@ -315,7 +378,7 @@ async def searchstats(ctx, message):
     await ctx.channel.send(f'Could not find {username} in the rankings')
     return
 
-#check top 5 players on the leaderboard
+#check top 10 players on the leaderboard
 @bot.command()
 async def leaderboard(ctx):
     if getGameID() == 0:
@@ -323,7 +386,7 @@ async def leaderboard(ctx):
     players = getPlayers()
     message = '```\n#  Player       Rating\n'
     i=1
-    #list off the first 5 players and their Elos
+    #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
@@ -338,7 +401,7 @@ async def leaderboard(ctx):
     await ctx.channel.send(message + '\n```')
     return
 
-#check top 5 players on the leaderboard and give extended stats
+#check top 10 players on the leaderboard and give extended stats
 @bot.command()
 async def leaderboardstats(ctx):
     if getGameID() == 0:
@@ -346,7 +409,7 @@ async def leaderboardstats(ctx):
     players = getPlayers()
     message = '```\n#  Player       μ     σ    games\n'
     i=1
-    #list off the first 5 players and their Elos
+    #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
