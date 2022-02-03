@@ -1,6 +1,5 @@
 # SAP_Bot.py
 import os
-import random
 from webbrowser import get
 import discord
 from csv import writer
