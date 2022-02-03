@@ -126,17 +126,6 @@ def getPlayers():
     players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
     print(players)
 
-    # #make an array for a weighted raffle
-    # raffle = []
-
-    # #fill array with weighted tickets for players
-    # for player in players:
-    #     for i in range(int(players.get(player))*int(players.get(player))):
-    #         raffle.append(player)
-
-    # #display raffle winner
-    # print("raffle winner: " + random.choice(raffle))
-
     return players
 
 #give proper intents for bot to detect members
@@ -144,6 +133,7 @@ intents = discord.Intents.default()
 intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+#confirm bot connection
 @bot.event
 async def on_ready():
     print('Logged in as')
@@ -173,6 +163,7 @@ async def on_raw_reaction_add(payload):
             print("role not found")
     return
 
+#removes role to users who un-react
 @bot.event
 async def on_raw_reaction_remove(payload):
     message_id = payload.message_id
@@ -210,15 +201,6 @@ def getMembers(ctx):
         members[member.id]=member.name
     return members
 
-# @bot.event()
-# async def on_reaction_add(reaction, user):
-#     if reaction.message.channel.id == 937998936269000704:
-#         embed = reaction.embeds[0]
-#         emoji = reaction.emoji
-#         await reaction.message.channel.send_message('{} has added {} to the message: {}'.format(user.name, reaction.emoji, reaction.message.content))
-
-#     return
-
 #submit new lobby results to spreadsheet
 @bot.command()
 async def submit(ctx, *message):
@@ -238,15 +220,16 @@ async def submit(ctx, *message):
             #open csv file to append new data
             with open('ranking.csv', 'a', newline='') as f_object:
                 writer_object = writer(f_object)
-                #keep track of players in the lobby
                 currentPlayers=[]
                 for i in range(0,len(message),2):
+                    username = members.get(int(message[i][3:-1]))
                     line = []
-                    line.append(members.get(int(message[i][3:-1])))
+                    #add the name, gameID, and placement to the array
+                    line.append(username)
                     line.append(gameID)
                     line.append(message[i+1])
-                    currentPlayers.append([members.get(int(message[i][3:-1])),players.get(members.get(int(message[i][3:-1])))[0]])
-                    #put gameID into second position
+                    #keep track of players in the lobby
+                    currentPlayers.append([username,players.get(username)[0]])
                     print(line)
                     #append line to csv file
                     writer_object.writerow(line)
@@ -257,15 +240,14 @@ async def submit(ctx, *message):
             #catch error
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
-        print(currentPlayers)
+        #update player rankings
         players = getPlayers()
-        print(len(players))
         playerRank = (f'```\n#  Player       Rating\n')
         i=1
+        #return info on the rating change for players in the lobby
         for player in players:
             for currentPlayer in currentPlayers:
                 if player == currentPlayer[0]:
-                    print(player)
                     #return the matching rank and elo
                     playerRank += (f'{i}   ')
                     for j in range(len(str(i))):
@@ -284,16 +266,17 @@ async def submit(ctx, *message):
         await ctx.channel.send(f'{playerRank}\n```')
         #add/remove role to members above/below 30 elo threshold
         players = getPlayers()
-        # for player in currentPlayers:
-        #     #match the player name with their member object
-        #     for member in ctx.guild.members:
-        #         if member.name.lower().startswith(player.lower()):
-        #             #get role to add/remove
-        #             role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-        #             if players.get(player)[0]<3000:
-        #                 await member.remove_roles(role)
-        #             else:
-        #                 await member.add_roles(role)
+        for player in currentPlayers:
+            player = player[0]
+            #match the player name with their member object
+            for member in ctx.guild.members:
+                if member.name.lower().startswith(player.lower()):
+                    #get role to add/remove
+                    role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+                    if players.get(player)[0]<3000:
+                        await member.remove_roles(role)
+                    else:
+                        await member.add_roles(role)
     return
 
 @bot.command()
@@ -302,38 +285,15 @@ async def replace(ctx, nameOld, nameNew):
         # reading the CSV file
         with open("ranking.csv", "r") as text:
 
-            #join() method combines all contents of 
-            # csvfile.csv and formed as a string
+            #combines file into a string
             text = ''.join([i for i in text]) 
-            
             # search and replace the contents
             text = text.replace(nameOld, nameNew)
-            
-            # output.csv is the output file opened in write mode
+            # write to output file
             x = open("ranking.csv","w")
-            
-            # all the replaced text is written in the output.csv file
             x.writelines(text)
             x.close()
     return
-
-# #check what rank user is
-# @bot.command()
-# async def myrank(ctx):
-#     #get name of user submitting
-#     username=ctx.author.name.replace(" ","")
-#     players = getPlayers()
-#     i=1
-#     #check to see if any player in the system matches the user's name
-#     for player in players:
-#         if player == username:
-#             #return the matching rank and elo
-#             await ctx.channel.send(f'{i}:{username}-{players.get(username)}')
-#             return
-#         i+=1
-#     #inform user if no match was found
-#     await ctx.channel.send(f'Could not find {username} in the rankings')
-#     return
 
 # @bot.command()
 # async def deleteGameID(ctx, message):
@@ -355,6 +315,7 @@ async def replace(ctx, nameOld, nameNew):
 async def search(ctx, *message):
     #get name of specified user
     message = list(message)
+    #join arguments to one username (necessary for usernames with spaces)
     username = ' '.join(message)
     players = getPlayers()
     i=1
