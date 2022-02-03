@@ -277,7 +277,7 @@ async def submit(ctx, *message):
                 if member.name.lower().startswith(player.lower()):
                     #get role to add/remove
                     role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-                    if players.get(player)[0]<3000:
+                    if players.get(player)[0]<30:
                         await member.remove_roles(role)
                     else:
                         await member.add_roles(role)
@@ -310,6 +310,7 @@ async def deleteGame(ctx, gameID):
         df = df[df['game_id'] != int(gameID)]
         #save csv without indexes
         df.to_csv('ranking.csv', index=False)
+        await ctx.channel.send(f'{ctx.author} removed gameID {gameID}!')
     return
 
 #check what rank a specified user is
