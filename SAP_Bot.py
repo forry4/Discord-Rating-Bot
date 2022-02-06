@@ -240,6 +240,14 @@ async def submit(ctx, *message):
                     username = members.get(int(message[i][3:-1]))
                     line = []
                     #add the name, gameID, and placement to the array
+                    usernameAscii = ''
+                    for char in username:
+                        if ord(char) > 31 and ord(char) < 127:
+                            usernameAscii += char
+                    print(f'usernameAscii: {usernameAscii}')
+                    temp = username
+                    username = usernameAscii
+                    usernameAscii = temp
                     line.append(username)
                     line.append(gameID)
                     line.append(message[i+1])
