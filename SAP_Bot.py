@@ -115,6 +115,8 @@ def getPlayers():
     #display the dataframe
     display(df_truerank)
 
+    # df_5 = df_truerank[df_truerank['game_id'] != int(gameID)]
+
     #create dictionary
     players = {}
 
@@ -126,7 +128,20 @@ def getPlayers():
     players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
     print(players)
 
-    return players
+    players5 = {}
+
+    for player in players:
+        if int(players.get(player)[2])>4:
+            players5[player]=players.get(player)
+
+    # for i in range(len(df_5)):
+        # players5[df_5['player_id'].iloc[i]] = [df_5['post_mu'].iloc[i], df_5['post_sigma'].iloc[i], df_5['player_id'].value_counts()[df_truerank['player_id'].iloc[i]]]
+
+    #sort and display the dictionary
+    # players5 = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
+    # print(players5)
+
+    return players5, players
 
 #give proper intents for bot to detect members
 intents = discord.Intents.default()
@@ -210,7 +225,7 @@ async def submit(ctx, *message):
         author=ctx.author.name
         #get current gameID
         gameID = int(getGameID())+1
-        players = getPlayers()
+        players, players5 = getPlayers()
         #check to see if formatting is valid
         try:
             #convert tuple to list
@@ -245,7 +260,7 @@ async def submit(ctx, *message):
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
         #update player rankings
-        players = getPlayers()
+        players, players5 = getPlayers()
         playerRank = (f'```\n#  Player            Rating\n')
         i=1
         #return info on the rating change for players in the lobby
@@ -269,7 +284,7 @@ async def submit(ctx, *message):
             i+=1
         await ctx.channel.send(f'{playerRank}\n```')
         #add/remove role to members above/below 30 elo threshold
-        players = getPlayers()
+        players, players5 = getPlayers()
         for player in currentPlayers:
             player = player[0]
             #match the player name with their member object
@@ -320,10 +335,10 @@ async def search(ctx, *message):
     message = list(message)
     #join arguments to one username (necessary for usernames with spaces)
     username = ' '.join(message)
-    players = getPlayers()
+    players5, players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
-    for player in players:
+    for player in players5:
         if player == username:
             #return the matching rank and elo
             playerRank = (f'```\n#  Player            Rating\n{i}   ')
@@ -332,7 +347,7 @@ async def search(ctx, *message):
             playerRank += player[0:min(len(player),11)]
             for j in range(17 - min(11,len(player)-1)):
                 playerRank += ' '
-            playerRank += (f'{int(100*players.get(player)[0])}\n```')
+            playerRank += (f'{int(100*players5.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
@@ -342,10 +357,12 @@ async def search(ctx, *message):
 
 #check what rank a specified user is and give extended stats
 @bot.command()
-async def searchstats(ctx, message):
+async def searchstats(ctx, *message):
     #get name of specified user
-    username=message
-    players = getPlayers()
+    message = list(message)
+    #join arguments to one username (necessary for usernames with spaces)
+    username = ' '.join(message)
+    players5, players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
@@ -358,8 +375,11 @@ async def searchstats(ctx, message):
             for j in range(17 - min(11,len(player)-1)):
                 playerRank += ' '
             mu, sigma, games = players.get(player)
-            playerRank += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n```')
-            await ctx.channel.send(playerRank)
+            if games > 4:
+                playerRank += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n```')
+                await ctx.channel.send(playerRank)
+            else:
+                await ctx.channel.send(f'{username} needs to play {5-games} more ranked game(s) to be given a rating')
             return
         i+=1
     #inform user if no match was found
@@ -371,7 +391,7 @@ async def searchstats(ctx, message):
 async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
-    players = getPlayers()
+    players, players5 = getPlayers()
     message = '```\n#  Player            Rating\n'
     i=1
     #list off the first 10 players and their Elos
@@ -394,7 +414,7 @@ async def leaderboard(ctx):
 async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
-    players = getPlayers()
+    players, players5 = getPlayers()
     message = '```\n#  Player            μ     σ    games\n'
     i=1
     #list off the first 10 players and their Elos
