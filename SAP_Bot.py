@@ -375,11 +375,11 @@ async def searchstats(ctx, *message):
             for j in range(17 - min(11,len(player)-1)):
                 playerRank += ' '
             mu, sigma, games = players.get(player)
-            if games > 4:
+            if games < 5:
+                await ctx.channel.send(f'{username} needs to play {5-games} more ranked game(s) to be given a rating')
+            else:
                 playerRank += (f'{int(mu*100)}  {int(sigma*100)}  {games}\n```')
                 await ctx.channel.send(playerRank)
-            else:
-                await ctx.channel.send(f'{username} needs to play {5-games} more ranked game(s) to be given a rating')
             return
         i+=1
     #inform user if no match was found
