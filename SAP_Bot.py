@@ -123,15 +123,20 @@ def getPlayers():
         players[df_truerank['player_id'].iloc[i]] = [round(3.6666+df_truerank['post_mu'].iloc[i]-2*df_truerank['post_sigma'].iloc[i],2), 
         df_truerank['post_mu'].iloc[i], 
         df_truerank['post_sigma'].iloc[i], 
-        df_truerank['player_id'].value_counts()[df_truerank['player_id'].iloc[i]]]
+        df_truerank['player_id'].value_counts()[df_truerank['player_id'].iloc[i]],
+        0]
 
     #sort and display the dictionary
-    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}   
+    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}
+    i=1
+    for player in players:
+        players.get(player)[4] = i
+        players[player] = players.get(player)
+        i += 1
+        
     print(players)
 
     return players
-
-players = getPlayers()
 
 #give proper intents for bot to detect members
 intents = discord.Intents.default()
@@ -242,9 +247,9 @@ async def submit(ctx, *message):
                     line.append(message[i+1])
                     #keep track of players in the lobby
                     try:
-                        currentPlayers[username] = players.get(username)[0]
+                        currentPlayers[username] = [players.get(username)[0],0]
                     except:
-                        currentPlayers[username] = 3.6666+25-2*8.3333
+                        currentPlayers[username] = [3.6666+25-2*8.3333,0]
                     print(line)
                     #append line to csv file
                     writer_object.writerow(line)
@@ -257,8 +262,13 @@ async def submit(ctx, *message):
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
         #update player rankings
-        currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1], reverse=True)} 
         players = getPlayers()
+        for player in currentPlayers:
+            currentPlayers.get(player)[1] = players.get(player)[0]
+            currentPlayers[player] = currentPlayers.get(player)
+            print(currentPlayers[player])
+        currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1][1], reverse=True)} 
+        print(f'currentPlayers: {currentPlayers}')
         playerRank = (f'```\n#  Player              Rating\n')
         i=1
         #return info on the rating change for players in the lobby
@@ -266,14 +276,14 @@ async def submit(ctx, *message):
             print(f'player: {player}')
             print(players.get(str(player)))
             #return the matching rank and elo
-            playerRank += (f'{i}   ')
-            for j in range(len(str(i))):
+            playerRank += (f'{players.get(player)[4]}   ')
+            for j in range(len(str(players.get(player)[4]))):
                 playerRank = playerRank[:-1]
             playerRank += members.get(int(player[:-1]))
             for k in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
-            rating = 100*players.get(player)[0]
-            change = rating-100*currentPlayers.get(player)
+            rating = 100*currentPlayers.get(player)[1]
+            change = rating - 100*currentPlayers.get(player)[0]
             playerRank += (f'{int(rating)}(')
             if change > 0:
                 playerRank += '+'
@@ -285,7 +295,7 @@ async def submit(ctx, *message):
         for player in currentPlayers:
             #match the player name with their member object
             for member in ctx.guild.members:
-                if members.get(member.id) == player:
+                if member.id == int(player[:-1]):
                     #get role to add/remove
                     role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
                     role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
@@ -296,7 +306,9 @@ async def submit(ctx, *message):
                         else:
                             await member.add_roles(role2)
                     else:
+                        await member.remove_roles(role2)
                         await member.add_roles(role1)
+                    break
     return
 
 @bot.command()
@@ -409,7 +421,7 @@ async def searchstats(ctx, message):
             playerRank += members.get(int(player[:-1]))
             for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
-            rating, mu, sigma, games = players.get(player)
+            rating, mu, sigma, games, rank = players.get(player)
             playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
             await ctx.channel.send(playerRank)
             return
@@ -459,7 +471,7 @@ async def leaderboardstats(ctx):
         message += members.get(int(player[:-1]))
         for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
-        rating, mu, sigma, games = players.get(player)
+        rating, mu, sigma, games, rank = players.get(player)
         message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
         if i==10:
             break
