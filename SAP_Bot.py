@@ -259,7 +259,7 @@ async def submit(ctx, *message):
         #update player rankings
         currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1], reverse=True)} 
         players = getPlayers()
-        playerRank = (f'```\n#  Player          Rating\n')
+        playerRank = (f'```\n#  Player              Rating\n')
         i=1
         #return info on the rating change for players in the lobby
         for player in currentPlayers:
@@ -270,7 +270,7 @@ async def submit(ctx, *message):
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
             playerRank += members.get(int(player[:-1]))
-            for k in range(16 - len(members.get(int(player[:-1])))):
+            for k in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             rating = 100*players.get(player)[0]
             change = rating-100*currentPlayers.get(player)
@@ -356,26 +356,33 @@ async def deleteGame(ctx, gameID):
 async def search(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
-    username = f'{message[3:-1]}#'
+    print(f'len message: {len(message[3:-1])}')
+    if len(message[3:-1]) == 18:
+        username = f'{message[3:-1]}#'
+        print(f'18: {username}')
+    else:
+        username = f'{message[2:-1]}#'
+        print(f'not 18: {username}')
     print(f'username: {username}')
+    print(f'member: {members.get(int(username[:-1]))}')
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player          Rating\n{i}   ')
+            playerRank = (f'```\n#  Player              Rating\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
             playerRank += members.get(int(player[:-1]))
-            for j in range(16 - len(members.get(int(player[:-1])))):
+            for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             playerRank += (f'{int(100*players.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
     #inform user if no match was found
-    await ctx.channel.send(f'Could not find {username} in the rankings')
+    await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
     return
 
 #check what rank a specified user is and give extended stats
@@ -383,18 +390,24 @@ async def search(ctx, message):
 async def searchstats(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
-    username = f'{message[3:-1]}#'
+    print(f'len message: {len(message[3:-1])}')
+    if len(message[3:-1]) == 18:
+        username = f'{message[3:-1]}#'
+        print(f'18: {username}')
+    else:
+        username = f'{message[2:-1]}#'
+        print(f'not 18: {username}')
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player          Rating  μ     σ    games\n{i}   ')
+            playerRank = (f'```\n#  Player              Rating  μ     σ    games\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
             playerRank += members.get(int(player[:-1]))
-            for j in range(16 - len(members.get(int(player[:-1])))):
+            for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             rating, mu, sigma, games = players.get(player)
             playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
@@ -402,7 +415,7 @@ async def searchstats(ctx, message):
             return
         i+=1
     #inform user if no match was found
-    await ctx.channel.send(f'Could not find {username} in the rankings')
+    await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
     return
 
 #check top 10 players on the leaderboard
@@ -436,7 +449,7 @@ async def leaderboardstats(ctx):
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
     members = getMembers(ctx)
-    message = '```\n#  Player          Rating  μ     σ    games\n'
+    message = '```\n#  Player              Rating  μ     σ    games\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
@@ -444,7 +457,7 @@ async def leaderboardstats(ctx):
         for j in range(len(str(i))):
             message = message[:-1]
         message += members.get(int(player[:-1]))
-        for j in range(16 - len(members.get(int(player[:-1])))):
+        for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
         rating, mu, sigma, games = players.get(player)
         message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
