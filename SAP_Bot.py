@@ -209,7 +209,7 @@ async def members(ctx):
 def getMembers(ctx):
     members={}
     for member in ctx.guild.members:
-        members[member.id] = str(member)
+        members[member.id] = member.display_name
     return members
 
 #submit new lobby results to spreadsheet
@@ -233,7 +233,7 @@ async def submit(ctx, *message):
                 writer_object = writer(f_object)
                 currentPlayers={}
                 for i in range(0,len(message),2):
-                    username = members.get(int(message[i][3:-1]))
+                    username = f'{message[i][3:-1]}#'
                     print(f'username: {username}')
                     line = []
                     #add the name, gameID, and placement to the array
@@ -259,7 +259,7 @@ async def submit(ctx, *message):
         #update player rankings
         currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1], reverse=True)} 
         players = getPlayers()
-        playerRank = (f'```\n#  Player               Rating\n')
+        playerRank = (f'```\n#  Player          Rating\n')
         i=1
         #return info on the rating change for players in the lobby
         for player in currentPlayers:
@@ -269,8 +269,8 @@ async def submit(ctx, *message):
             playerRank += (f'{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
-            playerRank += player[0:len(player)]
-            for k in range(21 - len(player)):
+            playerRank += members.get(int(player[:-1]))
+            for k in range(16 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             rating = 100*players.get(player)[0]
             change = rating-100*currentPlayers.get(player)
@@ -287,11 +287,16 @@ async def submit(ctx, *message):
             for member in ctx.guild.members:
                 if members.get(member.id) == player:
                     #get role to add/remove
-                    role = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+                    role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+                    role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
                     if players.get(player)[0]<30:
-                        await member.remove_roles(role)
+                        await member.remove_roles(role1)
+                        if players.get(player)[0]<27.5:
+                            await member.remove_roles(role2)
+                        else:
+                            await member.add_roles(role2)
                     else:
-                        await member.add_roles(role)
+                        await member.add_roles(role1)
     return
 
 @bot.command()
@@ -303,12 +308,14 @@ async def replaceAll(ctx):
             text = ''.join([i for i in text]) 
             # search and replace the contents
             for member in ctx.guild.members:
-                if member.nick is not None:
-                    print(member.nick)
-                if member.nick is not None and member.nick.strip() in text:
-                    text = text.replace(member.nick, str(member))
-                elif member.name.strip() in text:
-                    text = text.replace(member.name, str(member))
+                # if member.nick is not None:
+                #     print(member.nick)
+                # if member.nick is not None and member.nick.strip() in text:
+                #     text = text.replace(member.nick, str(member))
+                # elif member.name.strip() in text:
+                #     text = text.replace(member.name, str(member))
+                if str(member).strip() in text:
+                    text = text.replace((str(member)), f"{member.id}#")
             # write to output file
             x = open("ranking.csv","w")
             x.writelines(text)
@@ -349,18 +356,19 @@ async def deleteGame(ctx, gameID):
 async def search(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
-    username = members.get(int(message[3:-1]))
+    username = f'{message[3:-1]}#'
+    print(f'username: {username}')
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player               Rating\n{i}   ')
+            playerRank = (f'```\n#  Player          Rating\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
-            playerRank += player[0:len(player)]
-            for j in range(21 - len(player)):
+            playerRank += members.get(int(player[:-1]))
+            for j in range(16 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             playerRank += (f'{int(100*players.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
@@ -375,18 +383,18 @@ async def search(ctx, message):
 async def searchstats(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
-    username = members.get(int(message[3:-1]))
+    username = f'{message[3:-1]}#'
     players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
         if player == username:
             #return the matching rank and elo
-            playerRank = (f'```\n#  Player               Rating  μ     σ    games\n{i}   ')
+            playerRank = (f'```\n#  Player          Rating  μ     σ    games\n{i}   ')
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
-            playerRank += player[0:len(player)]
-            for j in range(21 - len(player)):
+            playerRank += members.get(int(player[:-1]))
+            for j in range(16 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             rating, mu, sigma, games = players.get(player)
             playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
@@ -403,15 +411,16 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player               Rating\n'
+    members = getMembers(ctx)
+    message = '```\n#  Player          Rating\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
-                message = message[:-1]
-        message += player[0:len(player)]
-        for j in range(21 - len(player)):
+            message = message[:-1]
+        message += members.get(int(player[:-1]))
+        for j in range(16 - len(members.get(int(player[:-1])))):
             message += ' '
         message += (f'{int(100*players.get(player)[0])}\n')
         if i==10:
@@ -426,15 +435,16 @@ async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     players = getPlayers()
-    message = '```\n#  Player               Rating  μ     σ    games\n'
+    members = getMembers(ctx)
+    message = '```\n#  Player          Rating  μ     σ    games\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
         for j in range(len(str(i))):
-                message = message[:-1]
-        message += player[0:len(player)]
-        for j in range(21 - len(player)):
+            message = message[:-1]
+        message += members.get(int(player[:-1]))
+        for j in range(16 - len(members.get(int(player[:-1])))):
             message += ' '
         rating, mu, sigma, games = players.get(player)
         message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
