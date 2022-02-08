@@ -211,14 +211,26 @@ async def on_raw_reaction_remove(payload):
 #print all members in the server
 @bot.command()
 async def members(ctx):
-    #check to see if I am giving the command
-    if ctx.author.id == 292116181312339969:
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
         members = {}
         #create dictionary of member ids and their discord name (Donutseeds#7704 for example)
         for member in ctx.guild.members:
             members[member.id] = str(member)
         print(members)
     return members
+
+#print all members in the server
+@bot.command()
+async def players(ctx):
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
+        #print out the players dictionary
+        players = getPlayers()
+        print(players)
+    return
 
 #return dictionary of member ids and member names
 def getMembers(ctx):
@@ -338,7 +350,9 @@ async def submit(ctx, *message):
 #command to replace certain cells in the excel spreadsheet; change the function as necessary
 @bot.command()
 async def replaceAll(ctx):
-    if ctx.author.id == 292116181312339969:
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
         # reading the CSV file
         with open("ranking.csv", "r") as text:
             #combines file into a string
@@ -356,7 +370,9 @@ async def replaceAll(ctx):
 #replace an occurence in the spreadsheet with different text
 @bot.command()
 async def replace(ctx, nameOld, nameNew):
-    if ctx.author.id == 292116181312339969:
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
         # reading the CSV file
         with open("ranking.csv", "r") as text:
             #combines file into a string
@@ -372,8 +388,9 @@ async def replace(ctx, nameOld, nameNew):
 #remove a game from the spreadsheet
 @bot.command()
 async def deleteGame(ctx, gameID):
-    #confirm admin is making command
-    if ctx.author.id == 292116181312339969:
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
         #make pandas dataframe
         df = pd.read_csv('ranking.csv')
         #keep rows where gameID doesnt match input
@@ -405,11 +422,15 @@ async def search(ctx, message):
         if player == username:
             #return the matching rank and elo
             playerRank = (f'```\n#  Player              Rating\n{i}   ')
+            #account for length of index
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
+            #add player name to string
             playerRank += members.get(int(player[:-1]))
+            #account for length of name
             for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
+            #add player rating to string
             playerRank += (f'{int(100*players.get(player)[0])}\n```')
             await ctx.channel.send(playerRank)
             return
@@ -424,7 +445,7 @@ async def searchstats(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
     print(f'len message: {len(message[3:-1])}')
-    #for some reason when certain members use the search command, their message differs in length
+    #when certain members use the search command, their message differs in length
     if len(message[3:-1]) == 18:
         username = f'{message[3:-1]}#'
         print(f'18: {username}')
@@ -439,11 +460,15 @@ async def searchstats(ctx, message):
         if player == username:
             #return the matching rank and elo
             playerRank = (f'```\n#  Player              Rating  μ     σ    games\n{i}   ')
+            #account for length of index
             for j in range(len(str(i))):
                 playerRank = playerRank[:-1]
+            #add player name to string
             playerRank += members.get(int(player[:-1]))
+            #account for length of player name
             for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
+            #add player stats to string
             rating, mu, sigma, games, rank = players.get(player)
             playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
             await ctx.channel.send(playerRank)
@@ -462,17 +487,22 @@ async def leaderboard(ctx):
     #get list of players and members
     players = getPlayers()
     members = getMembers(ctx)
-    message = '```\n#  Player          Rating\n'
+    message = '```\n#  Player              Rating\n'
     i=1
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
+        #account for length of index
         for j in range(len(str(i))):
             message = message[:-1]
+        #add player name to string
         message += members.get(int(player[:-1]))
-        for j in range(16 - len(members.get(int(player[:-1])))):
+        #account for length of player name
+        for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
+        #add player rating to string
         message += (f'{int(100*players.get(player)[0])}\n')
+        #stop after printing the first 10 entries
         if i==10:
             break
         i+=1
@@ -493,13 +523,18 @@ async def leaderboardstats(ctx):
     #list off the first 10 players and their Elos
     for player in players:
         message += (f'{i}   ')
+        #account for length of index
         for j in range(len(str(i))):
             message = message[:-1]
+        #add player name to string
         message += members.get(int(player[:-1]))
+        #account for length of player name
         for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
+        #add player stats to string
         rating, mu, sigma, games, rank = players.get(player)
         message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
+        #stop after first 10 entries
         if i==10:
             break
         i+=1
