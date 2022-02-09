@@ -27,7 +27,8 @@ async def on_ready():
     print(bot.user.id)
     print('------')
 
-def getPlayers():
+def setPlayers():
+    global players
     # Fetch the data
     df_raw = pd.read_csv('ranking.csv')
 
@@ -128,10 +129,6 @@ def getPlayers():
     players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][1], reverse=True)}
 
     return players
-
-def setPlayers():
-    global players
-    players = getPlayers()
 
 def getGameID():
     #open the file
@@ -263,7 +260,6 @@ async def submit(ctx, *message):
                     else:
                         username = f'{message[i][2:-1]}#'
                         print(f'not 18: {username}')
-                    print(f'username: {username}')
                     line = []
                     #add the name, gameID, and placement to the array
                     line.append(username)
@@ -299,8 +295,6 @@ async def submit(ctx, *message):
         for player in currentPlayers:
             #set the current players new rating after the lobby
             currentPlayers.get(player)[1] = players.get(player)[1]
-        #sort the list of current players by their new rating
-        currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1][1], reverse=True)} 
         print(f'currentPlayers: {currentPlayers}')
         playerRank = (f'```\n#  Player              Rating\n')
         i=1
@@ -416,8 +410,6 @@ async def search(ctx, message):
     else:
         username = f'{message[2:-1]}#'
         print(f'not 18: {username}')
-    #update list of players
-    # players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
@@ -447,6 +439,7 @@ async def search(ctx, message):
 async def searchstats(ctx, message):
     #get name of specified user
     members = getMembers(ctx)
+    print(f'message: {message}')
     print(f'len message: {len(message[3:-1])}')
     #when certain members use the search command, their message differs in length
     if len(message[3:-1]) == 18:
@@ -455,8 +448,6 @@ async def searchstats(ctx, message):
     else:
         username = f'{message[2:-1]}#'
         print(f'not 18: {username}')
-    #update list of players
-    # players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
@@ -473,7 +464,13 @@ async def searchstats(ctx, message):
                 playerRank += ' '
             #add player stats to string
             index, rating, games, blah, mu, sigma = players.get(player)
-            playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
+            playerRank += (f'{int(rating*100)}    {int(mu*100)}  ')
+            if len(str(int(mu*100))) == 3:
+                playerRank += ' '
+            playerRank += (f'{int(sigma*100)}  ')
+            if len(str(int(sigma*100))) == 2:
+                playerRank += ' '
+            playerRank += (f'{games}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
@@ -487,8 +484,6 @@ async def leaderboard(ctx):
     #check if there is no data in the spreadsheet
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
-    #get list of players and members
-    # players = getPlayers()
     members = getMembers(ctx)
     message = '```\n#  Player              Rating\n'
     i=1
@@ -518,8 +513,7 @@ async def leaderboardstats(ctx):
     #check if there is no data in the spreadsheet
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
-    #get list of players and members
-    # players = getPlayers()
+    #get list members
     members = getMembers(ctx)
     message = '```\n#  Player              Rating  μ     σ    games\n'
     i=1
@@ -536,7 +530,13 @@ async def leaderboardstats(ctx):
             message += ' '
         #add player stats to string
         index, rating, games, blah, mu, sigma = players.get(player)
-        message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
+        message += (f'{int(rating*100)}    {int(mu*100)}  ')
+        if len(str(int(mu*100))) == 3:
+            message += ' '
+        message += (f'{int(sigma*100)}  ')
+        if len(str(int(sigma*100))) == 2:
+            message += ' '
+        message += (f'{games}\n')
         #stop after first 10 entries
         if i==10:
             break
