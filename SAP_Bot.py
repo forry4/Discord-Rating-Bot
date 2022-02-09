@@ -12,15 +12,20 @@ from trueskill import Rating, rate
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-def getGameID():
-    #open the file
-    with open('ranking.csv','r') as file: 
-        data = file.readlines()
-        #return current game number as 0 if data is empty
-        if len(data)==1:
-            return 0
-        #return latest value for game number
-        return data[-1].split(',')[1]
+players = {}
+
+#give proper intents for bot to detect members
+intents = discord.Intents.default()
+intents.members = True
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+#confirm bot connection
+@bot.event
+async def on_ready():
+    print('Logged in as')
+    print(bot.user.name)
+    print(bot.user.id)
+    print('------')
 
 def getPlayers():
     # Fetch the data
@@ -119,32 +124,24 @@ def getPlayers():
         players.get(player)[1] = 3.6666 + players.get(player)[4] - 2 * players.get(player)[5]
         players.get(player)[2] = df_truerank['player_id'].value_counts()[player]
         players.get(player)[3] = 0
+    #sort players by their rating
     players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][1], reverse=True)}
 
-    print(players)
-
     return players
-
-players = {}
 
 def setPlayers():
     global players
     players = getPlayers()
 
-setPlayers()
-
-#give proper intents for bot to detect members
-intents = discord.Intents.default()
-intents.members = True
-bot = commands.Bot(command_prefix='!', intents=intents)
-
-#confirm bot connection
-@bot.event
-async def on_ready():
-    print('Logged in as')
-    print(bot.user.name)
-    print(bot.user.id)
-    print('------')
+def getGameID():
+    #open the file
+    with open('ranking.csv','r') as file: 
+        data = file.readlines()
+        #return current game number as 0 if data is empty
+        if len(data)==1:
+            return 0
+        #return latest value for game number
+        return data[-1].split(',')[1]
 
 #gives role to users who react
 @bot.event
@@ -206,7 +203,7 @@ async def on_raw_reaction_remove(payload):
 
 #print all members in the server
 @bot.command()
-async def members(ctx):
+async def members1(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
     if role in ctx.author.roles:
@@ -224,7 +221,6 @@ async def players1(ctx):
     role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
     if role in ctx.author.roles:
         #print out the players dictionary
-        # players = getPlayers()
         print(players)
     return
 
@@ -245,7 +241,6 @@ async def submit(ctx, *message):
         author=ctx.author.name
         #get current gameID
         gameID = int(getGameID())+1
-        # players = getPlayers()
         #check to see if formatting is valid
         try:
             #convert tuple to list
@@ -280,7 +275,7 @@ async def submit(ctx, *message):
                     #if this is their first game, give them a base rating (1200)
                     except:
                         currentPlayers[username] = [3.6666+25-2*8.3333,0]
-                    print(line)
+                    print(f'line to add: {line}')
                     #append line to csv file
                     writer_object.writerow(line)
                 ranking.close()
@@ -301,10 +296,8 @@ async def submit(ctx, *message):
             setPlayers()
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
-        print(f'updated players: {players}')
         for player in currentPlayers:
             #set the current players new rating after the lobby
-            print(f'old : new {currentPlayers.get(player)[0]} : {players.get(player)[1]}')
             currentPlayers.get(player)[1] = players.get(player)[1]
         #sort the list of current players by their new rating
         currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1][1], reverse=True)} 
@@ -314,8 +307,6 @@ async def submit(ctx, *message):
         #return info on the rating change for players in the lobby
         for player in players:
             if player in currentPlayers:
-                print(f'player: {player}')
-                print(players.get(str(player)))
                 #return the matching rank
                 playerRank += (f'{i}   ')
                 #remove spaces from string the longer thier rank index is
@@ -553,4 +544,5 @@ async def leaderboardstats(ctx):
     await ctx.channel.send(message + '\n```')
     return
 
+setPlayers()
 bot.run(TOKEN)
