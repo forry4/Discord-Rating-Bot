@@ -1,27 +1,24 @@
 # SAP_Bot.py
 import os
-from webbrowser import get
 import discord
-from csv import writer
 import pandas as pd
+from csv import writer
 from dotenv import load_dotenv
 from discord.ext import commands
 from IPython.display import display
 from trueskill import Rating, rate
 
+#load in the token secret
 load_dotenv()
-
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 def getGameID():
     #open the file
     with open('ranking.csv','r') as file: 
         data = file.readlines()
-
         #return current game number as 0 if data is empty
         if len(data)==1:
             return 0
-
         #return latest value for game number
         return data[-1].split(',')[1]
 
@@ -115,27 +112,26 @@ def getPlayers():
     #display the dataframe
     display(df_truerank)
 
-    #create dictionary
-    players = {}
-
-    #fill dictionary with player ids and their stats
-    for i in range(len(df_truerank)):
-        players[df_truerank['player_id'].iloc[i]] = [round(3.6666+df_truerank['post_mu'].iloc[i]-2*df_truerank['post_sigma'].iloc[i],2), 
-        df_truerank['post_mu'].iloc[i], 
-        df_truerank['post_sigma'].iloc[i], 
-        df_truerank['player_id'].value_counts()[df_truerank['player_id'].iloc[i]],
-        0]
-
-    #sort and display the dictionary
-    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][0], reverse=True)}
-    #add index to sorted dictionary
-    i=1
+    #create dictionary for player: 0, Rating, Games, 0, Mu, Sigma
+    players = df_truerank.set_index('player_id').T.to_dict('list')
     for player in players:
-        players.get(player)[4] = i
-        players[player] = players.get(player)
-        i += 1
+        players.get(player)[0] = 0
+        players.get(player)[1] = 3.6666 + players.get(player)[4] - 2 * players.get(player)[5]
+        players.get(player)[2] = df_truerank['player_id'].value_counts()[player]
+        players.get(player)[3] = 0
+    players = {k: v for k, v in sorted(players.items(), key=lambda item: item[1][1], reverse=True)}
+
+    print(players)
 
     return players
+
+players = {}
+
+def setPlayers():
+    global players
+    players = getPlayers()
+
+setPlayers()
 
 #give proper intents for bot to detect members
 intents = discord.Intents.default()
@@ -223,12 +219,12 @@ async def members(ctx):
 
 #print all members in the server
 @bot.command()
-async def players(ctx):
+async def players1(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
     if role in ctx.author.roles:
         #print out the players dictionary
-        players = getPlayers()
+        # players = getPlayers()
         print(players)
     return
 
@@ -249,12 +245,12 @@ async def submit(ctx, *message):
         author=ctx.author.name
         #get current gameID
         gameID = int(getGameID())+1
-        players = getPlayers()
+        # players = getPlayers()
         #check to see if formatting is valid
         try:
             #convert tuple to list
             message = list(message)
-            print(message)
+            print(f'list message: {message}')
             #get the dictionary of member ids : display names
             members = getMembers(ctx)
             #open csv file to append new data
@@ -265,7 +261,13 @@ async def submit(ctx, *message):
                 #loop through each player in the lobby
                 for i in range(0,len(message),2):
                     #get the discord id from the submitted ping
-                    username = f'{message[i][3:-1]}#'
+                    #when certain members use the search command, their message differs in length
+                    if len(message[i][3:-1]) == 18:
+                        username = f'{message[i][3:-1]}#'
+                        print(f'18: {username}')
+                    else:
+                        username = f'{message[i][2:-1]}#'
+                        print(f'not 18: {username}')
                     print(f'username: {username}')
                     line = []
                     #add the name, gameID, and placement to the array
@@ -274,7 +276,7 @@ async def submit(ctx, *message):
                     line.append(message[i+1])
                     #add the current player's rating (prior to this submission) to the dictionary
                     try:
-                        currentPlayers[username] = [players.get(username)[0],0]
+                        currentPlayers[username] = [players.get(username)[1],0]
                     #if this is their first game, give them a base rating (1200)
                     except:
                         currentPlayers[username] = [3.6666+25-2*8.3333,0]
@@ -282,51 +284,59 @@ async def submit(ctx, *message):
                     #append line to csv file
                     writer_object.writerow(line)
                 ranking.close()
+            #update players
+            setPlayers()
             #confirmation message
             await ctx.channel.send(f'Thank you {author} for submitting gameID {gameID}!')
         except Exception as e:
             #catch error
             print(e)
+            #make pandas dataframe
+            df = pd.read_csv('ranking.csv')
+            #keep rows where gameID doesnt match input
+            df = df[df['game_id'] != int(gameID)]
+            #save csv without indexes
+            df.to_csv('ranking.csv', index=False)
+            #update players
+            setPlayers()
             await ctx.channel.send(f'Error submitting gameID {gameID}!')
             return
-        #update player rankings
-        players = getPlayers()
+        print(f'updated players: {players}')
         for player in currentPlayers:
             #set the current players new rating after the lobby
-            currentPlayers.get(player)[1] = players.get(player)[0]
-            currentPlayers[player] = currentPlayers.get(player)
-            print(currentPlayers[player])
+            print(f'old : new {currentPlayers.get(player)[0]} : {players.get(player)[1]}')
+            currentPlayers.get(player)[1] = players.get(player)[1]
         #sort the list of current players by their new rating
         currentPlayers = {k: v for k, v in sorted(currentPlayers.items(), key=lambda item: item[1][1], reverse=True)} 
         print(f'currentPlayers: {currentPlayers}')
         playerRank = (f'```\n#  Player              Rating\n')
         i=1
         #return info on the rating change for players in the lobby
-        for player in currentPlayers:
-            print(f'player: {player}')
-            print(players.get(str(player)))
-            #return the matching rank
-            playerRank += (f'{players.get(player)[4]}   ')
-            #remove spaces from string the longer thier rank index is
-            for j in range(len(str(players.get(player)[4]))):
-                playerRank = playerRank[:-1]
-            #add username to the string
-            playerRank += members.get(int(player[:-1]))
-            #add spaces for proper allignment
-            for k in range(20 - len(members.get(int(player[:-1])))):
-                playerRank += ' '
-            #get the new rating and calculate the change
-            rating = 100*currentPlayers.get(player)[1]
-            change = rating - 100*currentPlayers.get(player)[0]
-            #add change to the string
-            playerRank += (f'{int(rating)}(')
-            if change > 0:
-                playerRank += '+'
-            playerRank += (f'{int(change)})\n')                  
+        for player in players:
+            if player in currentPlayers:
+                print(f'player: {player}')
+                print(players.get(str(player)))
+                #return the matching rank
+                playerRank += (f'{i}   ')
+                #remove spaces from string the longer thier rank index is
+                for j in range(len(str(i))):
+                    playerRank = playerRank[:-1]
+                #add username to the string
+                playerRank += members.get(int(player[:-1]))
+                #add spaces for proper allignment
+                for k in range(20 - len(members.get(int(player[:-1])))):
+                    playerRank += ' '
+                #get the new rating and calculate the change
+                rating = 100*currentPlayers.get(player)[1]
+                change = rating - 100*currentPlayers.get(player)[0]
+                #add change to the string
+                playerRank += (f'{int(rating)}(')
+                if change > 0:
+                    playerRank += '+'
+                playerRank += (f'{int(change)})\n')                  
             i+=1
         await ctx.channel.send(f'{playerRank}\n```')
         #add/remove role to members above/below 30 elo threshold
-        players = getPlayers()
         for player in currentPlayers:
             #match the player name with their member object
             for member in ctx.guild.members:
@@ -335,9 +345,9 @@ async def submit(ctx, *message):
                     role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
                     role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
                     #add high elo role if above 30, add mid elo role if above 27.5
-                    if players.get(player)[0]<30:
+                    if players.get(player)[1]<30:
                         await member.remove_roles(role1)
-                        if players.get(player)[0]<27.5:
+                        if players.get(player)[1]<27.5:
                             await member.remove_roles(role2)
                         else:
                             await member.add_roles(role2)
@@ -397,6 +407,8 @@ async def deleteGame(ctx, gameID):
         df = df[df['game_id'] != int(gameID)]
         #save csv without indexes
         df.to_csv('ranking.csv', index=False)
+        #update players
+        setPlayers()
         await ctx.channel.send(f'{ctx.author} removed gameID {gameID}!')
     return
 
@@ -414,7 +426,7 @@ async def search(ctx, message):
         username = f'{message[2:-1]}#'
         print(f'not 18: {username}')
     #update list of players
-    players = getPlayers()
+    # players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
@@ -431,7 +443,7 @@ async def search(ctx, message):
             for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             #add player rating to string
-            playerRank += (f'{int(100*players.get(player)[0])}\n```')
+            playerRank += (f'{int(100*players.get(player)[1])}\n```')
             await ctx.channel.send(playerRank)
             return
         i+=1
@@ -453,7 +465,7 @@ async def searchstats(ctx, message):
         username = f'{message[2:-1]}#'
         print(f'not 18: {username}')
     #update list of players
-    players = getPlayers()
+    # players = getPlayers()
     i=1
     #check to see if any player in the system matches the user's name
     for player in players:
@@ -469,7 +481,7 @@ async def searchstats(ctx, message):
             for j in range(20 - len(members.get(int(player[:-1])))):
                 playerRank += ' '
             #add player stats to string
-            rating, mu, sigma, games, rank = players.get(player)
+            index, rating, games, blah, mu, sigma = players.get(player)
             playerRank += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n```')
             await ctx.channel.send(playerRank)
             return
@@ -485,7 +497,7 @@ async def leaderboard(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     #get list of players and members
-    players = getPlayers()
+    # players = getPlayers()
     members = getMembers(ctx)
     message = '```\n#  Player              Rating\n'
     i=1
@@ -501,7 +513,7 @@ async def leaderboard(ctx):
         for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
         #add player rating to string
-        message += (f'{int(100*players.get(player)[0])}\n')
+        message += (f'{int(100*players.get(player)[1])}\n')
         #stop after printing the first 10 entries
         if i==10:
             break
@@ -516,7 +528,7 @@ async def leaderboardstats(ctx):
     if getGameID() == 0:
         await ctx.channel.send('No data in the leaderboard')
     #get list of players and members
-    players = getPlayers()
+    # players = getPlayers()
     members = getMembers(ctx)
     message = '```\n#  Player              Rating  μ     σ    games\n'
     i=1
@@ -532,7 +544,7 @@ async def leaderboardstats(ctx):
         for j in range(20 - len(members.get(int(player[:-1])))):
             message += ' '
         #add player stats to string
-        rating, mu, sigma, games, rank = players.get(player)
+        index, rating, games, blah, mu, sigma = players.get(player)
         message += (f'{int(rating*100)}    {int(mu*100)}  {int(sigma*100)}  {games}\n')
         #stop after first 10 entries
         if i==10:
