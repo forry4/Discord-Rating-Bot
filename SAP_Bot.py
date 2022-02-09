@@ -464,10 +464,10 @@ async def searchstats(ctx, message):
                 playerRank += ' '
             #add player stats to string
             index, rating, games, blah, mu, sigma = players.get(player)
-            playerRank += (f'{int(rating*100)}    {int(mu*100)}  ')
-            if len(str(int(mu*100))) == 3:
+            playerRank += (f'{int(rating*100)}    ')
+            if len(str(int(rating*100))) == 3:
                 playerRank += ' '
-            playerRank += (f'{int(sigma*100)}  ')
+            playerRank += (f'{int(mu*100)}  {int(sigma*100)}  ')
             if len(str(int(sigma*100))) == 2:
                 playerRank += ' '
             playerRank += (f'{games}\n```')
@@ -530,10 +530,10 @@ async def leaderboardstats(ctx):
             message += ' '
         #add player stats to string
         index, rating, games, blah, mu, sigma = players.get(player)
-        message += (f'{int(rating*100)}    {int(mu*100)}  ')
-        if len(str(int(mu*100))) == 3:
+        message += (f'{int(rating*100)}    ')
+        if len(str(int(rating*100))) == 3:
             message += ' '
-        message += (f'{int(sigma*100)}  ')
+        message += (f'{int(mu*100)}  {int(sigma*100)}  ')
         if len(str(int(sigma*100))) == 2:
             message += ' '
         message += (f'{games}\n')
