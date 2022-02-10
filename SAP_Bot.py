@@ -2,6 +2,7 @@
 import os
 import discord
 import pandas as pd
+from timeit import default_timer as timer
 from csv import writer
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -226,7 +227,7 @@ def getMembers(ctx):
     members={}
     #create dictionary of member ids and their discord display name (Donutseeds for example)
     for member in ctx.guild.members:
-        members[member.id] = member.display_name
+        members[member.id] = member
     return members
 
 #submit new lobby results to spreadsheet
@@ -310,9 +311,9 @@ async def submit(ctx, *message):
                 for j in range(len(str(i))):
                     playerRank = playerRank[:-1]
                 #add username to the string
-                playerRank += members.get(int(player[:-1]))
+                playerRank += members.get(int(player[:-1])).display_name
                 #add spaces for proper allignment
-                for k in range(20 - len(members.get(int(player[:-1])))):
+                for k in range(20 - len(members.get(int(player[:-1])).display_name)):
                     playerRank += ' '
                 #get the new rating and calculate the change
                 rating = 100*currentPlayers.get(player)[1]
@@ -321,21 +322,20 @@ async def submit(ctx, *message):
                 playerRank += (f'{int(rating)}(')
                 if change > 0:
                     playerRank += '+'
-                playerRank += (f'{int(change)})\n')  
-                for member in ctx.guild.members:
-                    #match the player name with their member object
-                    if member.id == int(player[:-1]):
-                        #add high elo role if above 30, add mid elo role if above 27.5
-                        if players.get(player)[1]<30:
-                            await member.remove_roles(role1)
-                            if players.get(player)[1]<27.5:
-                                await member.remove_roles(role2)
-                            else:
-                                await member.add_roles(role2)
-                        else:
-                            await member.remove_roles(role2)
-                            await member.add_roles(role1)
-                        break                
+                playerRank += (f'{int(change)})\n')
+                #add high elo role if above 30, add mid elo role if above 27.5
+                if players.get(player)[1]<30:
+                    if role1 in members.get(int(player[:-1])).roles:
+                        await members.get(int(player[:-1])).remove_roles(role1)
+                    if players.get(player)[1]<27.5:
+                        if role2 in members.get(int(player[:-1])).roles:
+                            await members.get(int(player[:-1])).remove_roles(role2)
+                    else:
+                        if role2 not in members.get(int(player[:-1])).roles:
+                            await members.get(int(player[:-1])).add_roles(role2)
+                else:
+                    if role1 not in members.get(int(player[:-1])).roles:
+                        await members.get(int(player[:-1])).add_roles(role1)
             i+=1
         await ctx.channel.send(f'{playerRank}\n```')    
     return
@@ -420,9 +420,9 @@ async def search(ctx, message):
                 for j in range(len(str(i))):
                     playerRank = playerRank[:-1]
                 #add player name to string
-                playerRank += members.get(int(player[:-1]))
+                playerRank += members.get(int(player[:-1])).display_name
                 #account for length of name
-                for j in range(20 - len(members.get(int(player[:-1])))):
+                for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                     playerRank += ' '
                 #add player rating to string
                 playerRank += (f'{int(100*players.get(player)[1])}\n```')
@@ -430,7 +430,7 @@ async def search(ctx, message):
                 return
             i+=1
         #inform user if no match was found
-        await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
+        await ctx.channel.send(f'Could not find {members.get(int(username[:-1])).display_name} in the rankings')
     return
 
 #check what rank a specified user is and give extended stats
@@ -458,9 +458,9 @@ async def searchstats(ctx, message):
                 for j in range(len(str(i))):
                     playerRank = playerRank[:-1]
                 #add player name to string
-                playerRank += members.get(int(player[:-1]))
+                playerRank += members.get(int(player[:-1])).display_name
                 #account for length of player name
-                for j in range(20 - len(members.get(int(player[:-1])))):
+                for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                     playerRank += ' '
                 #add player stats to string
                 index, rating, games, blah, mu, sigma = players.get(player)
@@ -475,7 +475,7 @@ async def searchstats(ctx, message):
                 return
             i+=1
         #inform user if no match was found
-        await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
+        await ctx.channel.send(f'Could not find {members.get(int(username[:-1])).display_name} in the rankings')
     return
 
 #check top 10 players on the leaderboard
@@ -495,9 +495,9 @@ async def leaderboard(ctx):
             for j in range(len(str(i))):
                 message = message[:-1]
             #add player name to string
-            message += members.get(int(player[:-1]))
+            message += members.get(int(player[:-1])).display_name
             #account for length of player name
-            for j in range(20 - len(members.get(int(player[:-1])))):
+            for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                 message += ' '
             #add player rating to string
             message += (f'{int(100*players.get(player)[1])}\n')
@@ -526,9 +526,9 @@ async def leaderboardstats(ctx):
             for j in range(len(str(i))):
                 message = message[:-1]
             #add player name to string
-            message += members.get(int(player[:-1]))
+            message += members.get(int(player[:-1])).display_name
             #account for length of player name
-            for j in range(20 - len(members.get(int(player[:-1])))):
+            for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                 message += ' '
             #add player stats to string
             index, rating, games, blah, mu, sigma = players.get(player)
