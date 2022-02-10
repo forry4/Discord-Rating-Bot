@@ -298,6 +298,9 @@ async def submit(ctx, *message):
         print(f'currentPlayers: {currentPlayers}')
         playerRank = (f'```\n#  Player              Rating\n')
         i=1
+        #get role to add/remove
+        role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
+        role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
         #return info on the rating change for players in the lobby
         for player in players:
             if player in currentPlayers:
@@ -318,28 +321,23 @@ async def submit(ctx, *message):
                 playerRank += (f'{int(rating)}(')
                 if change > 0:
                     playerRank += '+'
-                playerRank += (f'{int(change)})\n')                  
-            i+=1
-        await ctx.channel.send(f'{playerRank}\n```')
-        #add/remove role to members above/below 30 elo threshold
-        for player in currentPlayers:
-            #match the player name with their member object
-            for member in ctx.guild.members:
-                if member.id == int(player[:-1]):
-                    #get role to add/remove
-                    role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-                    role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
-                    #add high elo role if above 30, add mid elo role if above 27.5
-                    if players.get(player)[1]<30:
-                        await member.remove_roles(role1)
-                        if players.get(player)[1]<27.5:
-                            await member.remove_roles(role2)
+                playerRank += (f'{int(change)})\n')  
+                for member in ctx.guild.members:
+                    #match the player name with their member object
+                    if member.id == int(player[:-1]):
+                        #add high elo role if above 30, add mid elo role if above 27.5
+                        if players.get(player)[1]<30:
+                            await member.remove_roles(role1)
+                            if players.get(player)[1]<27.5:
+                                await member.remove_roles(role2)
+                            else:
+                                await member.add_roles(role2)
                         else:
-                            await member.add_roles(role2)
-                    else:
-                        await member.remove_roles(role2)
-                        await member.add_roles(role1)
-                    break
+                            await member.remove_roles(role2)
+                            await member.add_roles(role1)
+                        break                
+            i+=1
+        await ctx.channel.send(f'{playerRank}\n```')    
     return
 
 #command to replace certain cells in the excel spreadsheet; change the function as necessary
@@ -400,148 +398,152 @@ async def deleteGame(ctx, gameID):
 #check what rank a specified user is
 @bot.command()
 async def search(ctx, message):
-    #get list of members
-    members = getMembers(ctx)
-    print(f'len message: {len(message[3:-1])}')
-    #for some reason when certain members use the search command, their message differs in length
-    if len(message[3:-1]) == 18:
-        username = f'{message[3:-1]}#'
-        print(f'18: {username}')
-    else:
-        username = f'{message[2:-1]}#'
-        print(f'not 18: {username}')
-    i=1
-    #check to see if any player in the system matches the user's name
-    for player in players:
-        #check if searched player is in the system
-        if player == username:
-            #return the matching rank and elo
-            playerRank = (f'```\n#  Player              Rating\n{i}   ')
-            #account for length of index
-            for j in range(len(str(i))):
-                playerRank = playerRank[:-1]
-            #add player name to string
-            playerRank += members.get(int(player[:-1]))
-            #account for length of name
-            for j in range(20 - len(members.get(int(player[:-1])))):
-                playerRank += ' '
-            #add player rating to string
-            playerRank += (f'{int(100*players.get(player)[1])}\n```')
-            await ctx.channel.send(playerRank)
-            return
-        i+=1
-    #inform user if no match was found
-    await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
+    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
+        #get list of members
+        members = getMembers(ctx)
+        print(f'len message: {len(message[3:-1])}')
+        #for some reason when certain members use the search command, their message differs in length
+        if len(message[3:-1]) == 18:
+            username = f'{message[3:-1]}#'
+            print(f'18: {username}')
+        else:
+            username = f'{message[2:-1]}#'
+            print(f'not 18: {username}')
+        i=1
+        #check to see if any player in the system matches the user's name
+        for player in players:
+            #check if searched player is in the system
+            if player == username:
+                #return the matching rank and elo
+                playerRank = (f'```\n#  Player              Rating\n{i}   ')
+                #account for length of index
+                for j in range(len(str(i))):
+                    playerRank = playerRank[:-1]
+                #add player name to string
+                playerRank += members.get(int(player[:-1]))
+                #account for length of name
+                for j in range(20 - len(members.get(int(player[:-1])))):
+                    playerRank += ' '
+                #add player rating to string
+                playerRank += (f'{int(100*players.get(player)[1])}\n```')
+                await ctx.channel.send(playerRank)
+                return
+            i+=1
+        #inform user if no match was found
+        await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
     return
 
 #check what rank a specified user is and give extended stats
 @bot.command()
 async def searchstats(ctx, message):
-    #get name of specified user
-    members = getMembers(ctx)
-    print(f'message: {message}')
-    print(f'len message: {len(message[3:-1])}')
-    #when certain members use the search command, their message differs in length
-    if len(message[3:-1]) == 18:
-        username = f'{message[3:-1]}#'
-        print(f'18: {username}')
-    else:
-        username = f'{message[2:-1]}#'
-        print(f'not 18: {username}')
-    i=1
-    #check to see if any player in the system matches the user's name
-    for player in players:
-        if player == username:
-            #return the matching rank and elo
-            playerRank = (f'```\n#  Player              Rating  μ     σ    games\n{i}   ')
-            #account for length of index
-            for j in range(len(str(i))):
-                playerRank = playerRank[:-1]
-            #add player name to string
-            playerRank += members.get(int(player[:-1]))
-            #account for length of player name
-            for j in range(20 - len(members.get(int(player[:-1])))):
-                playerRank += ' '
-            #add player stats to string
-            index, rating, games, blah, mu, sigma = players.get(player)
-            playerRank += (f'{int(rating*100)}    ')
-            if len(str(int(rating*100))) == 3:
-                playerRank += ' '
-            playerRank += (f'{int(mu*100)}  {int(sigma*100)}  ')
-            if len(str(int(sigma*100))) == 2:
-                playerRank += ' '
-            playerRank += (f'{games}\n```')
-            await ctx.channel.send(playerRank)
-            return
-        i+=1
-    #inform user if no match was found
-    await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
+    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
+        #get name of specified user
+        members = getMembers(ctx)
+        print(f'message: {message}')
+        print(f'len message: {len(message[3:-1])}')
+        #when certain members use the search command, their message differs in length
+        if len(message[3:-1]) == 18:
+            username = f'{message[3:-1]}#'
+            print(f'18: {username}')
+        else:
+            username = f'{message[2:-1]}#'
+            print(f'not 18: {username}')
+        i=1
+        #check to see if any player in the system matches the user's name
+        for player in players:
+            if player == username:
+                #return the matching rank and elo
+                playerRank = (f'```\n#  Player              Rating  μ     σ    games\n{i}   ')
+                #account for length of index
+                for j in range(len(str(i))):
+                    playerRank = playerRank[:-1]
+                #add player name to string
+                playerRank += members.get(int(player[:-1]))
+                #account for length of player name
+                for j in range(20 - len(members.get(int(player[:-1])))):
+                    playerRank += ' '
+                #add player stats to string
+                index, rating, games, blah, mu, sigma = players.get(player)
+                playerRank += (f'{int(rating*100)}    ')
+                if len(str(int(rating*100))) == 3:
+                    playerRank += ' '
+                playerRank += (f'{int(mu*100)}  {int(sigma*100)}  ')
+                if len(str(int(sigma*100))) == 2:
+                    playerRank += ' '
+                playerRank += (f'{games}\n```')
+                await ctx.channel.send(playerRank)
+                return
+            i+=1
+        #inform user if no match was found
+        await ctx.channel.send(f'Could not find {members.get(int(username[:-1]))} in the rankings')
     return
 
 #check top 10 players on the leaderboard
 @bot.command()
 async def leaderboard(ctx):
-    #check if there is no data in the spreadsheet
-    if getGameID() == 0:
-        await ctx.channel.send('No data in the leaderboard')
-    members = getMembers(ctx)
-    message = '```\n#  Player              Rating\n'
-    i=1
-    #list off the first 10 players and their Elos
-    for player in players:
-        message += (f'{i}   ')
-        #account for length of index
-        for j in range(len(str(i))):
-            message = message[:-1]
-        #add player name to string
-        message += members.get(int(player[:-1]))
-        #account for length of player name
-        for j in range(20 - len(members.get(int(player[:-1])))):
-            message += ' '
-        #add player rating to string
-        message += (f'{int(100*players.get(player)[1])}\n')
-        #stop after printing the first 10 entries
-        if i==10:
-            break
-        i+=1
-    await ctx.channel.send(message + '\n```')
+    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
+        #check if there is no data in the spreadsheet
+        if getGameID() == 0:
+            await ctx.channel.send('No data in the leaderboard')
+        members = getMembers(ctx)
+        message = '```\n#  Player              Rating\n'
+        i=1
+        #list off the first 10 players and their Elos
+        for player in players:
+            message += (f'{i}   ')
+            #account for length of index
+            for j in range(len(str(i))):
+                message = message[:-1]
+            #add player name to string
+            message += members.get(int(player[:-1]))
+            #account for length of player name
+            for j in range(20 - len(members.get(int(player[:-1])))):
+                message += ' '
+            #add player rating to string
+            message += (f'{int(100*players.get(player)[1])}\n')
+            #stop after printing the first 10 entries
+            if i==10:
+                break
+            i+=1
+        await ctx.channel.send(message + '\n```')
     return
 
 #check top 10 players on the leaderboard and give extended stats
 @bot.command()
 async def leaderboardstats(ctx):
-    #check if there is no data in the spreadsheet
-    if getGameID() == 0:
-        await ctx.channel.send('No data in the leaderboard')
-    #get list members
-    members = getMembers(ctx)
-    message = '```\n#  Player              Rating  μ     σ    games\n'
-    i=1
-    #list off the first 10 players and their Elos
-    for player in players:
-        message += (f'{i}   ')
-        #account for length of index
-        for j in range(len(str(i))):
-            message = message[:-1]
-        #add player name to string
-        message += members.get(int(player[:-1]))
-        #account for length of player name
-        for j in range(20 - len(members.get(int(player[:-1])))):
-            message += ' '
-        #add player stats to string
-        index, rating, games, blah, mu, sigma = players.get(player)
-        message += (f'{int(rating*100)}    ')
-        if len(str(int(rating*100))) == 3:
-            message += ' '
-        message += (f'{int(mu*100)}  {int(sigma*100)}  ')
-        if len(str(int(sigma*100))) == 2:
-            message += ' '
-        message += (f'{games}\n')
-        #stop after first 10 entries
-        if i==10:
-            break
-        i+=1
-    await ctx.channel.send(message + '\n```')
+    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
+        #check if there is no data in the spreadsheet
+        if getGameID() == 0:
+            await ctx.channel.send('No data in the leaderboard')
+        #get list members
+        members = getMembers(ctx)
+        message = '```\n#  Player              Rating  μ     σ    games\n'
+        i=1
+        #list off the first 10 players and their Elos
+        for player in players:
+            message += (f'{i}   ')
+            #account for length of index
+            for j in range(len(str(i))):
+                message = message[:-1]
+            #add player name to string
+            message += members.get(int(player[:-1]))
+            #account for length of player name
+            for j in range(20 - len(members.get(int(player[:-1])))):
+                message += ' '
+            #add player stats to string
+            index, rating, games, blah, mu, sigma = players.get(player)
+            message += (f'{int(rating*100)}    ')
+            if len(str(int(rating*100))) == 3:
+                message += ' '
+            message += (f'{int(mu*100)}  {int(sigma*100)}  ')
+            if len(str(int(sigma*100))) == 2:
+                message += ' '
+            message += (f'{games}\n')
+            #stop after first 10 entries
+            if i==10:
+                break
+            i+=1
+        await ctx.channel.send(message + '\n```')
     return
 
 setPlayers()
