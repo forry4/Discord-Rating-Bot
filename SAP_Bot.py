@@ -1,6 +1,7 @@
 # SAP_Bot.py
 import os
 import discord
+import math
 import pandas as pd
 from datetime import date
 from datetime import datetime
@@ -303,8 +304,31 @@ async def submit(ctx, *message):
                 ranking.close()
             #update players
             setPlayers(mode)
-            #confirmation message
-            await ctx.channel.send(f'Thank you {author} for submitting {mode} gameID {gameID}!')
+            print(f'currentPlayers: {currentPlayers}')
+            message = (f'```\n#  Player              Rating\n')
+            i=1
+            #return info on the rating change for players in the lobby
+            for player in players[mode]:
+                if player in currentPlayers:
+                    #return the matching rank
+                    message += (f'{i}   ')
+                    #remove spaces from string the longer thier rank index is
+                    for j in range(len(str(i))):
+                        message = message[:-1]
+                    #add username to the string
+                    message += members.get(int(player[:-1])).display_name
+                    #add spaces for proper allignment
+                    for k in range(20 - len(members.get(int(player[:-1])).display_name)):
+                        message += ' '
+                    #get the new rating and calculate the change
+                    rating = 100*players[mode].get(player)[1]
+                    change = rating - 100*currentPlayers.get(player)
+                    #add change to the string
+                    message += (f'{int(rating)}(')
+                    if change > 0:
+                        message += '+'
+                    message += (f'{int(change)})\n')
+                i+=1
         except Exception as e:
             #catch error
             print(e)
@@ -317,49 +341,75 @@ async def submit(ctx, *message):
             #update players
             setPlayers(mode)
             await ctx.channel.send(f'Error submitting {mode} gameID {gameID}!')
-            return
-        print(f'currentPlayers: {currentPlayers}')
-        message = (f'```\n#  Player              Rating\n')
-        i=1
-        #get role to add/remove
-        role1 = discord.utils.get(ctx.author.guild.roles, name = "High Elo Gamer")
-        role2 = discord.utils.get(ctx.author.guild.roles, name = "Mid Elo Gamer")
-        #return info on the rating change for players in the lobby
-        for player in players[mode]:
-            if player in currentPlayers:
-                #return the matching rank
-                message += (f'{i}   ')
-                #remove spaces from string the longer thier rank index is
-                for j in range(len(str(i))):
-                    message = message[:-1]
-                #add username to the string
-                message += members.get(int(player[:-1])).display_name
-                #add spaces for proper allignment
-                for k in range(20 - len(members.get(int(player[:-1])).display_name)):
-                    message += ' '
-                #get the new rating and calculate the change
-                rating = 100*players[mode].get(player)[1]
-                change = rating - 100*currentPlayers.get(player)
-                #add change to the string
-                message += (f'{int(rating)}(')
-                if change > 0:
-                    message += '+'
-                message += (f'{int(change)})\n')
-                #add high elo role if above 30, add mid elo role if above 27.5
-                if players[mode].get(player)[1]<30:
-                    if role1 in members.get(int(player[:-1])).roles:
-                        await members.get(int(player[:-1])).remove_roles(role1)
-                    if players[mode].get(player)[1]<27.5:
-                        if role2 in members.get(int(player[:-1])).roles:
-                            await members.get(int(player[:-1])).remove_roles(role2)
+            return   
+        else:
+            #get role to add/remove
+            role0 = discord.utils.get(ctx.author.guild.roles, name = "Masters") #3000
+            role1 = discord.utils.get(ctx.author.guild.roles, name = "Diamond") #2750
+            role2 = discord.utils.get(ctx.author.guild.roles, name = "Platinum") #2500
+            role3 = discord.utils.get(ctx.author.guild.roles, name = "Gold") #2250
+            role4 = discord.utils.get(ctx.author.guild.roles, name = "Silver") #2000
+            role5 = discord.utils.get(ctx.author.guild.roles, name = "Bronze") #1750
+            roles = [role0, role1, role2, role3, role4, role5]
+            #add high elo role if above 30, add mid elo role if above 27.5
+            for player in currentPlayers:
+                rating = max(
+                    0 if players['1V1'].get(player) is None else players['1V1'].get(player)[1],
+                    0 if players['FFA'].get(player) is None else players['FFA'].get(player)[1])
+                roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
+                for role in roles:
+                    if role == roleHigh:
+                        if role not in members.get(int(player[:-1])).roles:
+                            print(f'added {role.name} to {str(members.get(int(player[:-1])))}')
+                            await members.get(int(player[:-1])).add_roles(role)
                     else:
-                        if role2 not in members.get(int(player[:-1])).roles:
-                            await members.get(int(player[:-1])).add_roles(role2)
+                        if role in members.get(int(player[:-1])).roles:
+                            print(f'removed {role.name} from {str(members.get(int(player[:-1])))}')
+                            await members.get(int(player[:-1])).remove_roles(role)
+            #confirmation message
+            await ctx.channel.send(f'Thank you {author} for submitting {mode} gameID {gameID}!')
+            await ctx.channel.send(f'{message}\n```') 
+    return
+
+@bot.command()
+async def setRoles(ctx, mode):
+    #check to see if an admin is giving the command
+    role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
+    if role in ctx.author.roles:
+        mode = mode.upper()
+        #get members
+        members = getMembers(ctx)
+        #get role to add/remove
+        role0 = discord.utils.get(ctx.author.guild.roles, name = "Masters") #3000
+        role1 = discord.utils.get(ctx.author.guild.roles, name = "Diamond") #2750
+        role2 = discord.utils.get(ctx.author.guild.roles, name = "Platinum") #2500
+        role3 = discord.utils.get(ctx.author.guild.roles, name = "Gold") #2250
+        role4 = discord.utils.get(ctx.author.guild.roles, name = "Silver") #2000
+        role5 = discord.utils.get(ctx.author.guild.roles, name = "Bronze") #1750
+        unranked = discord.utils.get(ctx.author.guild.roles, name = "Unranked")
+        roles = [role0, role1, role2, role3, role4, role5]
+        #add highest elo role to each member
+        for member in ctx.guild.members:
+            rating = max(
+                0 if players['1V1'].get(f'{member.id}#') is None else players['1V1'].get(f'{member.id}#')[1],
+                0 if players['FFA'].get(f'{member.id}#') is None else players['FFA'].get(f'{member.id}#')[1])
+            if rating == 0:
+                if unranked not in member.roles:
+                    print(f'{str(member)} is unranked')
+                    await member.add_roles(unranked)
+                continue
+            roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
+            print(f'{str(member)} highest role is {roleHigh}')
+            for role in roles:
+                if role == roleHigh:
+                    if role not in member.roles:
+                        print(f'added {role.name} to {str(member)}')
+                        await member.add_roles(role)
                 else:
-                    if role1 not in members.get(int(player[:-1])).roles:
-                        await members.get(int(player[:-1])).add_roles(role1)
-            i+=1
-        await ctx.channel.send(f'{message}\n```')    
+                    if role in member.roles:
+                        print(f'removed {role.name} from {str(member)}')
+                        await member.remove_roles(role)
+        print('roles set poggers')
     return
 
 #command to replace certain cells in the excel spreadsheet; change the function as necessary
@@ -474,7 +524,7 @@ async def search(ctx, message):
 
 #check what rank a specified user is and give extended stats
 @bot.command()
-async def searchstats(ctx, mode, message):
+async def searchstats(ctx, message):
     if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
         #get name of specified user
         members = getMembers(ctx)
