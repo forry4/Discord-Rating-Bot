@@ -145,6 +145,7 @@ def getGameID(mode):
     #open the file
     with open(f'ranking{mode}.csv','r') as file: 
         data = file.readlines()
+        print(f'len data: {len(data)}')
         #return current game number as 0 if data is empty
         if len(data)==1:
             return 0
@@ -368,7 +369,8 @@ async def submit(ctx, *message):
                             await members.get(int(player[:-1])).remove_roles(role)
             #confirmation message
             await ctx.channel.send(f'Thank you {author} for submitting {mode} gameID {gameID}!')
-            await ctx.channel.send(f'{message}\n```') 
+            await ctx.channel.send(f'{message}\n```')
+            await editLeaderboard(ctx, mode)
     return
 
 @bot.command()
@@ -573,17 +575,27 @@ async def searchstats(ctx, message):
             mode = 'FFA'
     return
 
-#check top 10 players on the leaderboard
 @bot.command()
-async def leaderboard(ctx, mode):
-    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
-        mode = mode.upper()
-        #check if there is no data in the spreadsheet
-        if getGameID(mode) == 0:
-            await ctx.channel.send('No data in the leaderboard')
-            return
-        members = getMembers(ctx)
-        message = '```\n#  Player              Rating\n'
+async def editLeaderboard(ctx, mode):
+    #get list members
+    members = getMembers(ctx)
+    #get leaderboard channel
+    channel = ctx.guild.get_channel(941904885752946730)
+    #get the relevant message ids
+    _ffa_id = 941906003442667590
+    _1v1_id = 941906028260364288
+    _ffa_stats_id = 941906054067937350
+    _1v1_stats_id = 941906078625583114
+    #get corresponding messages
+    _ffa = await channel.fetch_message(_ffa_id)
+    _ffa_stats = await channel.fetch_message(_ffa_stats_id)
+    _1v1 = await channel.fetch_message(_1v1_id)
+    _1v1_stats = await channel.fetch_message(_1v1_stats_id)
+    #check if there is no data in the spreadsheet
+    if getGameID(mode) == 0:
+        message = "No data in the FFA leaderboard"
+    else:
+        message = f'{mode}\n```\n#  Player              Rating\n'
         i=1
         #list off the first 10 players and their Elos
         for player in players[mode]:
@@ -602,23 +614,13 @@ async def leaderboard(ctx, mode):
             if i==10:
                 break
             i+=1
-        await ctx.channel.send(f'{mode}\n{message}\n```')
-    return
-
-#check top 10 players on the leaderboard and give extended stats
-@bot.command()
-async def leaderboardstats(ctx, mode):
-    if ctx.channel.id == 938116070374510603 or ctx.channel.id == 940007288012415106:
-        mode = mode.upper()
-        #check if there is no data in the spreadsheet
-        if getGameID(mode) == 0:
-            await ctx.channel.send('No data in the leaderboard')
-            return
-        #get list members
-        members = getMembers(ctx)
-        message = '```\n#  Player              Rating  μ     σ    games\n'
+        if mode == 'FFA':
+            await _ffa.edit(content=f'{message}```')
+        else:
+            await _1v1.edit(content=f'{message}```')
+        message = f'{mode}\n```\n#  Player              Rating  μ     σ    games\n'
         i=1
-        #list off the first 10 players and their Elos
+        #list off the first 10 players and their Elos plus stats
         for player in players[mode]:
             message += (f'{i}   ')
             #account for length of index
@@ -642,7 +644,10 @@ async def leaderboardstats(ctx, mode):
             if i==10:
                 break
             i+=1
-        await ctx.channel.send(f'{mode}\n{message}\n```')
+        if mode == 'FFA':
+            await _ffa_stats.edit(content=f'{message}```')
+        else:
+            await _1v1_stats.edit(content=f'{message}```')
     return
 
 setPlayers('1V1')
