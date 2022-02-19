@@ -2,6 +2,7 @@
 import os
 import discord
 import math
+import csv
 import pandas as pd
 from datetime import date
 from datetime import datetime
@@ -10,7 +11,7 @@ from csv import writer
 from dotenv import load_dotenv
 from discord.ext import commands
 from IPython.display import display
-from trueskill import Rating, rate
+from trueskill import Rating, rate, rate_1vs1
 
 #load in the token secret
 load_dotenv()
@@ -32,7 +33,7 @@ async def on_ready():
     print('------')
 
 def setPlayers(mode):
-    
+
     global players
 
     # Fetch the data
@@ -58,7 +59,8 @@ def setPlayers(mode):
         sigmas = []
         post_mus = []
         post_sigmas = []
-        #dates = []
+
+        # print(f'game_id: {game_id} \ngame: {game}')
 
         # Now iterate over each player in a game
         for index, row in game.iterrows():
@@ -124,21 +126,74 @@ def setPlayers(mode):
 
     #display the dataframe
     display(df_truerank)
+
+# 3.6666 + playersMode.get(player)[4] - 2 * playersMode.get(player)[5]
+# 3.6666 + playersMode.get(player)[4] - 3 * playersMode.get(player)[5]
+# 3.6666 + playersMode.get(player)[4] - (3 - (0.1 * min(10,playersMode.get(player)[0]))) * playersMode.get(player)[5]
     
-    #create dictionary for player: 0, Rating, Games, 0, Mu, Sigma
+    #create dictionary for player: games, rating1, rating2, rating3, mu, sigma
     playersMode = df_truerank.set_index('player_id').T.to_dict('list')
     for player in playersMode:
-        playersMode.get(player)[0] = 0
-        playersMode.get(player)[1] = 3.6666 + playersMode.get(player)[4] - 2 * playersMode.get(player)[5]
-        playersMode.get(player)[2] = df_truerank['player_id'].value_counts()[player]
-        playersMode.get(player)[3] = 0
+        playersMode.get(player)[0] = df_truerank['player_id'].value_counts()[player]
+        playersMode.get(player)[1] = 3.6666 + playersMode.get(player)[4] - (3 - (0.1 * min(10,playersMode.get(player)[0])))* playersMode.get(player)[5]
+        playersMode.get(player)[2] = 3.6666 + playersMode.get(player)[4] - 3 * playersMode.get(player)[5]
+        playersMode.get(player)[3] = 3.6666 + playersMode.get(player)[4] - 2 * playersMode.get(player)[5]
     #sort players by their rating
     playersMode = {k: v for k, v in sorted(playersMode.items(), key=lambda item: item[1][1], reverse=True)}
-    if mode == '1V1':
-        players['1V1'] = playersMode
-    else:
-        players['FFA'] = playersMode
+    players[mode] = playersMode
     
+    playersToCSV(players, mode)
+    getPlayers(mode)
+    
+    return players
+
+def playersToCSV(players, mode):
+    df = pd.DataFrame.from_dict(players[mode], orient = 'index', columns = ['games', 'rating', 'mu', 'sigma', 'post_mu', 'post_sigma'])
+    df.to_csv (f'rating{mode}.csv', index = True, header=True)
+    return
+
+def getPlayers(mode):
+    global players
+    df = pd.read_csv(f'rating{mode}.csv', header = 0, names = ['player_id', 'games', 'rating', 'mu', 'sigma', 'post_mu', 'post_sigma'])
+    players[mode] = df.set_index('player_id').T.to_dict('list')
+    return players
+
+def ratePlayers(currentPlayers, mode):
+    global players
+    print(f'currentPlayers pre: {currentPlayers}')
+    players = getPlayers(mode)
+    trueskills = []
+    ranks = []
+    for player in currentPlayers:
+        print(f'old player: {player} ::: {players[mode].get(player)}')
+        #make rating objects of players' most recent mu and sigma
+        try:
+            trueskills.append(Rating(mu=players[mode].get(player)[4], sigma=players[mode].get(player)[5]))
+        #if the player isn't in the dictionary:
+        except Exception as e:
+            print(f'error1: {e}')
+            trueskills.append(Rating(mu=25, sigma=8.3333))
+        ranks.append(currentPlayers.get(player))
+    #get results from trueskill algorithm
+    trueskills_tuples = [(x,) for x in trueskills]
+    results = rate(trueskills_tuples, ranks=ranks)
+    i=0
+    for player in currentPlayers:
+        mu = results[i][0].mu
+        sigma = results[i][0].sigma
+        #increment games by 1, set new rating, set old mu and sigma, set new mu and sigma
+        try:
+            players[mode][player] = [players[mode].get(player)[0]+1, 3.6666 + mu - (2 * sigma), players[mode].get(player)[4], players[mode].get(player)[5], mu, sigma]
+        #if the player isn't in the dictionary yet:
+        except Exception as e:
+            print(f'error2: {e}')
+            players[mode][player] = [1, 3.6666 + mu - (2 * sigma), 25.00, 8.3333, mu, sigma]
+        i += 1
+        print(f'new player: {player} ::: {players[mode].get(player)}')
+    #sort the dictionary on rating
+    players[mode] = {k: v for k, v in sorted(players[mode].items(), key=lambda item: item[1][1], reverse=True)}
+    #save the dictionary to a csv file
+    playersToCSV(players, mode)
     return players
 
 def getGameID(mode):
@@ -283,29 +338,22 @@ async def submit(ctx, *message):
                     #when certain members use the search command, their message differs in length
                     if len(message[i][3:-1]) == 18:
                         username = f'{message[i][3:-1]}#'
-                        print(f'18: {username}')
                     else:
                         username = f'{message[i][2:-1]}#'
-                        print(f'not 18: {username}')
                     line = []
                     #add the name, gameID, placement, and date to the array
                     line.append(username)
                     line.append(gameID)
                     line.append(message[i+1])
                     line.append(today)
-                    #add the current player's rating (prior to this submission) to the dictionary
-                    try:
-                        currentPlayers[username] = players[mode].get(username)[1]
-                    #if this is their first game, give them a base rating (1200)
-                    except:
-                        currentPlayers[username] = 3.6666+25-2*8.3333
+                    #add the current player's placement to the dictionary
+                    currentPlayers[username] = message[i+1]
                     print(f'line to add: {line}')
                     #append line to csv file
                     writer_object.writerow(line)
                 ranking.close()
             #update players
-            setPlayers(mode)
-            print(f'currentPlayers: {currentPlayers}')
+            ratePlayers(currentPlayers, mode)
             message = (f'```\n#  Player              Rating\n')
             i=1
             #return info on the rating change for players in the lobby
@@ -323,7 +371,7 @@ async def submit(ctx, *message):
                         message += ' '
                     #get the new rating and calculate the change
                     rating = 100*players[mode].get(player)[1]
-                    change = rating - 100*currentPlayers.get(player)
+                    change = rating - 100*(3.6666 + players[mode].get(player)[2] - 2 * players[mode].get(player)[3])
                     #add change to the string
                     message += (f'{int(rating)}(')
                     if change > 0:
@@ -332,7 +380,7 @@ async def submit(ctx, *message):
                 i+=1
         except Exception as e:
             #catch error
-            print(e)
+            print(f'error: {e}')
             #make pandas dataframe
             df = pd.read_csv(f'ranking{mode}.csv')
             #keep rows where gameID doesnt match input
@@ -351,22 +399,35 @@ async def submit(ctx, *message):
             role3 = discord.utils.get(ctx.author.guild.roles, name = "Gold") #2250
             role4 = discord.utils.get(ctx.author.guild.roles, name = "Silver") #2000
             role5 = discord.utils.get(ctx.author.guild.roles, name = "Bronze") #1750
+            unranked = discord.utils.get(ctx.author.guild.roles, name = "Unranked")
             roles = [role0, role1, role2, role3, role4, role5]
             #add high elo role if above 30, add mid elo role if above 27.5
             for player in currentPlayers:
                 rating = max(
                     0 if players['1V1'].get(player) is None else players['1V1'].get(player)[1],
                     0 if players['FFA'].get(player) is None else players['FFA'].get(player)[1])
-                roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
-                for role in roles:
-                    if role == roleHigh:
-                        if role not in members.get(int(player[:-1])).roles:
-                            print(f'added {role.name} to {str(members.get(int(player[:-1])))}')
-                            await members.get(int(player[:-1])).add_roles(role)
-                    else:
+                if (0 if players['1V1'].get(player) is None else players['1V1'].get(player)[0]) < 10 and (0 if players['FFA'].get(player) is None else players['FFA'].get(player)[0]) < 10:
+                    if unranked not in members.get(int(player[:-1])).roles:
+                        print(f'added Unranked to {str(members.get(int(player[:-1])))}')
+                        await members.get(int(player[:-1])).add_roles(unranked)
+                    for role in roles:
                         if role in members.get(int(player[:-1])).roles:
                             print(f'removed {role.name} from {str(members.get(int(player[:-1])))}')
                             await members.get(int(player[:-1])).remove_roles(role)
+                else:
+                    if unranked in members.get(int(player[:-1])).roles:
+                        print(f'removed Unranked from {str(members.get(int(player[:-1])))}')
+                        await members.get(int(player[:-1])).remove_roles(unranked)
+                    roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
+                    for role in roles:
+                        if role == roleHigh:
+                            if role not in members.get(int(player[:-1])).roles:
+                                print(f'added {role.name} to {str(members.get(int(player[:-1])))}')
+                                await members.get(int(player[:-1])).add_roles(role)
+                        else:
+                            if role in members.get(int(player[:-1])).roles:
+                                print(f'removed {role.name} from {str(members.get(int(player[:-1])))}')
+                                await members.get(int(player[:-1])).remove_roles(role)
             #confirmation message
             await ctx.channel.send(f'Thank you {author} for submitting {mode} gameID {gameID}!')
             await ctx.channel.send(f'{message}\n```')
@@ -379,8 +440,6 @@ async def setRoles(ctx, mode):
     role = discord.utils.get(ctx.author.guild.roles, name = "Admin")
     if role in ctx.author.roles:
         mode = mode.upper()
-        #get members
-        members = getMembers(ctx)
         #get role to add/remove
         role0 = discord.utils.get(ctx.author.guild.roles, name = "Masters") #3000
         role1 = discord.utils.get(ctx.author.guild.roles, name = "Diamond") #2750
@@ -395,23 +454,30 @@ async def setRoles(ctx, mode):
             rating = max(
                 0 if players['1V1'].get(f'{member.id}#') is None else players['1V1'].get(f'{member.id}#')[1],
                 0 if players['FFA'].get(f'{member.id}#') is None else players['FFA'].get(f'{member.id}#')[1])
-            if rating == 0:
+            if (0 if players['1V1'].get(f'{member.id}#') is None else players['1V1'].get(f'{member.id}#')[0]) < 10 and (0 if players['FFA'].get(f'{member.id}#') is None else players['FFA'].get(f'{member.id}#')[0]) < 10:
                 if unranked not in member.roles:
-                    print(f'{str(member)} is unranked')
+                    print(f'added Unranked to {str(member)}')
                     await member.add_roles(unranked)
-                continue
-            roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
-            print(f'{str(member)} highest role is {roleHigh}')
-            for role in roles:
-                if role == roleHigh:
-                    if role not in member.roles:
-                        print(f'added {role.name} to {str(member)}')
-                        await member.add_roles(role)
-                else:
+                for role in roles:
                     if role in member.roles:
                         print(f'removed {role.name} from {str(member)}')
                         await member.remove_roles(role)
-        print('roles set poggers')
+            else:
+                if unranked in member.roles:
+                    print(f'removed Unranked from {str(member)}')
+                    await member.remove_roles(unranked)
+                roleHigh = roles[min(5,max(0,math.ceil((30-rating)/2.5)))]
+                print(f'{str(member)} highest role is {roleHigh}')
+                for role in roles:
+                    if role == roleHigh:
+                        if role not in member.roles:
+                            print(f'added {role.name} to {str(member)}')
+                            await member.add_roles(role)
+                    else:
+                        if role in member.roles:
+                            print(f'removed {role.name} from {str(member)}')
+                            await member.remove_roles(role)
+        print('roles set')
     return
 
 #command to replace certain cells in the excel spreadsheet; change the function as necessary
@@ -467,6 +533,7 @@ async def deleteGame(ctx, mode, gameID):
         #update players
         setPlayers(mode)
         await ctx.channel.send(f'{ctx.author} removed {mode} gameID {gameID}!')
+        await editLeaderboard(ctx, mode)
     return
 
 #check what rank a specified user is
@@ -480,16 +547,14 @@ async def search(ctx, message):
         #for some reason when certain members use the search command, their message differs in length
         if len(message[3:-1]) == 18:
             username = f'{message[3:-1]}#'
-            print(f'18: {username}')
         else:
             username = f'{message[2:-1]}#'
-            print(f'not 18: {username}')
         mode = '1V1'
-        for k in range(0,2):
+        for key, dict in players.items():
             found = False
             i=1
             #check to see if any player in the system matches the user's name
-            for player in players[mode]:
+            for player in dict:
                 #check if searched player is in the system
                 if player == username:
                     #return the matching rank and elo
@@ -503,9 +568,10 @@ async def search(ctx, message):
                     for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                         message += ' '
                     #add player rating to string
-                    message += (f'{int(100*players[mode].get(player)[1])}\n```')
-                    print(players[mode].get(player))
-                    await ctx.channel.send(f'{mode}\n{message}')
+                    message += (f'{int(100*dict.get(player)[1])}')
+                    if dict.get(player)[0] < 10:
+                        message += (f'    {int(10-dict.get(player)[0])} placement games remaining')
+                    await ctx.channel.send(f'{mode}\n{message}```\n')
                     found = True
                     break
                 i+=1
@@ -535,16 +601,14 @@ async def searchstats(ctx, message):
         #when certain members use the search command, their message differs in length
         if len(message[3:-1]) == 18:
             username = f'{message[3:-1]}#'
-            print(f'18: {username}')
         else:
             username = f'{message[2:-1]}#'
-            print(f'not 18: {username}')
         mode = '1V1'
-        for k in range(0,2):
+        for key, dict in players.items():
             found = False
             i=1
             #check to see if any player in the system matches the user's name
-            for player in players[mode]:
+            for player in dict:
                 if player == username:
                     #return the matching rank and elo
                     message = (f'```\n#  Player              Rating  μ     σ    games\n{i}   ')
@@ -557,15 +621,17 @@ async def searchstats(ctx, message):
                     for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                         message += ' '
                     #add player stats to string
-                    index, rating, games, blah, mu, sigma = players[mode].get(player)
+                    games, rating, pre_mu, pre_sigma, mu, sigma = dict.get(player)
                     message += (f'{int(rating*100)}    ')
                     if len(str(int(rating*100))) == 3:
                         message += ' '
                     message += (f'{int(mu*100)}  {int(sigma*100)}  ')
                     if len(str(int(sigma*100))) == 2:
                         message += ' '
-                    message += (f'{games}\n```')
-                    await ctx.channel.send(f'{mode}\n{message}')
+                    message += (f'{int(games)}')
+                    if games < 10:
+                        message += (f'    {int(10-games)} placement games remaining')
+                    await ctx.channel.send(f'{mode}\n{message}\n```')
                     found = True
                     break
                 i+=1
@@ -593,12 +659,14 @@ async def editLeaderboard(ctx, mode):
     _1v1_stats = await channel.fetch_message(_1v1_stats_id)
     #check if there is no data in the spreadsheet
     if getGameID(mode) == 0:
-        message = "No data in the FFA leaderboard"
+        message = (f'No data in the {mode} leaderboard')
     else:
         message = f'{mode}\n```\n#  Player              Rating\n'
         i=1
         #list off the first 10 players and their Elos
         for player in players[mode]:
+            if players[mode].get(player)[0] < 10:
+                continue
             message += (f'{i}   ')
             #account for length of index
             for j in range(len(str(i))):
@@ -614,6 +682,7 @@ async def editLeaderboard(ctx, mode):
             if i==10:
                 break
             i+=1
+        #edit content of appropriate message
         if mode == 'FFA':
             await _ffa.edit(content=f'{message}```')
         else:
@@ -622,6 +691,8 @@ async def editLeaderboard(ctx, mode):
         i=1
         #list off the first 10 players and their Elos plus stats
         for player in players[mode]:
+            if players[mode].get(player)[0] < 10:
+                continue
             message += (f'{i}   ')
             #account for length of index
             for j in range(len(str(i))):
@@ -632,18 +703,19 @@ async def editLeaderboard(ctx, mode):
             for j in range(20 - len(members.get(int(player[:-1])).display_name)):
                 message += ' '
             #add player stats to string
-            index, rating, games, blah, mu, sigma = players[mode].get(player)
+            games, rating, pre_mu, pre_sigma, mu, sigma = players[mode].get(player)
             message += (f'{int(rating*100)}    ')
             if len(str(int(rating*100))) == 3:
                 message += ' '
             message += (f'{int(mu*100)}  {int(sigma*100)}  ')
             if len(str(int(sigma*100))) == 2:
                 message += ' '
-            message += (f'{games}\n')
+            message += (f'{int(games)}\n')
             #stop after first 10 entries
             if i==10:
                 break
             i+=1
+        #edit content of appropriate message
         if mode == 'FFA':
             await _ffa_stats.edit(content=f'{message}```')
         else:
