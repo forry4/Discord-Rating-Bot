@@ -147,23 +147,27 @@ def setPlayers(mode):
     
     return players
 
+#exports array of players to a csv file
 def playersToCSV(players, mode):
     df = pd.DataFrame.from_dict(players[mode], orient = 'index', columns = ['games', 'rating', 'mu', 'sigma', 'post_mu', 'post_sigma'])
     df.to_csv (f'rating{mode}.csv', index = True, header=True)
     return
 
+#imports csv file, converts to dataframe, and then to dictionary
 def getPlayers(mode):
     global players
     df = pd.read_csv(f'rating{mode}.csv', header = 0, names = ['player_id', 'games', 'rating', 'mu', 'sigma', 'post_mu', 'post_sigma'])
     players[mode] = df.set_index('player_id').T.to_dict('list')
     return players
 
+#fast elo calculation after game submission
 def ratePlayers(currentPlayers, mode):
     global players
     print(f'currentPlayers pre: {currentPlayers}')
     players = getPlayers(mode)
     trueskills = []
     ranks = []
+    #loop through array of current players
     for player in currentPlayers:
         print(f'old player: {player} ::: {players[mode].get(player)}')
         #make rating objects of players' most recent mu and sigma
