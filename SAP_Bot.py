@@ -26,11 +26,13 @@ RANK_SUBMIT_CHANNELS = [COCONUT_SUBMIT,KARMA_TEST_CHANNEL]
 
 
 players = {}
-
+help_command = commands.DefaultHelpCommand(
+    no_category = 'Commands'
+)
 #give proper intents for bot to detect members
 intents = discord.Intents.default()
 intents.members = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents, help_command=help_command)
 
 #confirm bot connection
 @bot.event
@@ -250,7 +252,7 @@ async def on_raw_reaction_remove(payload):
     return
 
 #print all members in the server
-@bot.command()
+@bot.command(hidden=True)
 async def members1(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -263,7 +265,7 @@ async def members1(ctx):
     return members
 
 #print all 1V1 players in the server
-@bot.command()
+@bot.command(hidden=True)
 async def players1V1(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -273,7 +275,7 @@ async def players1V1(ctx):
     return
 
 #print all FFA players in the server
-@bot.command()
+@bot.command(hidden=True)
 async def playersFFA(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -290,8 +292,18 @@ def getMembers(ctx):
         members[member.id] = member
     return members
 
+submit_help = """EXAMPLE SUBMISSION:
+!submit @Donutseeds 1 @SubOptimal 2 @Ark 3
+^signifies Donutseeds got 1st, SubOptimal got 2nd, Ark got 3rd^
+
+You may also separate each player by making a new line if you prefer
+
+If SubOptimal and Ark had gone out the same round, leaving Donutseeds the winner, they would share 2.5th place, giving us:
+!submit @Donutseeds 1 @SubOptimal 2.5 @Ark 2.5
+"""
+
 #submit new lobby results to spreadsheet
-@bot.command(brief="Submit ranked results", usage="<@user1> <placement #> <@user2> <placement #> <@user3> <placement #> ... <@userN> <placement #> ",help='test')
+@bot.command(brief="Submit ranked results", usage="<@user1> <placement #> <@user2> <placement #> <@user3> <placement #> ... <@userN> <placement #> ",help = submit_help)
 async def submit(ctx, *message):
     #check that we're in the right channel
     if ctx.channel.id in RANK_SUBMIT_CHANNELS:
@@ -419,7 +431,7 @@ async def submit(ctx, *message):
             await editLeaderboard(ctx, mode)
     return
 
-@bot.command()
+@bot.command(hidden=True)
 async def setRoles(ctx, mode):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -466,7 +478,7 @@ async def setRoles(ctx, mode):
     return
 
 #command to replace certain cells in the excel spreadsheet; change the function as necessary
-@bot.command()
+@bot.command(hidden=True)
 async def replaceAll(ctx):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -486,7 +498,7 @@ async def replaceAll(ctx):
     return
 
 #replace an occurence in the spreadsheet with different text
-@bot.command()
+@bot.command(hidden=True)
 async def replace(ctx, nameOld, nameNew):
     #check to see if an admin is giving the command
     role = discord.utils.get(ctx.author.guild.roles, name = "Bot Person")
@@ -504,7 +516,7 @@ async def replace(ctx, nameOld, nameNew):
     return
 
 #remove a game from the spreadsheet
-@bot.command()
+@bot.command(hidden=True)
 async def deleteGame(ctx, mode, gameID):
     mode = mode.upper()
     #check to see if an admin is giving the command
@@ -574,7 +586,7 @@ async def search(ctx, message):
     return
 
 #check what rank a specified user is and give extended stats
-@bot.command(brief="Look up a user's ranked stats ")
+@bot.command(brief="Look up a user's ranked stats ",usage = '<@username>')
 async def searchstats(ctx, message):
     if ctx.channel.id in BOT_SPAM_CHANNELS:
         #get name of specified user
@@ -622,7 +634,7 @@ async def searchstats(ctx, message):
             mode = 'FFA'
     return
 
-@bot.command()
+@bot.command(hidden=True)
 async def editLeaderboard(ctx, mode):
     #get list members
     members = getMembers(ctx)
