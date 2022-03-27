@@ -17,6 +17,14 @@ from trueskill import Rating, rate, rate_1vs1
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+KARMA_TEST_CHANNEL = 866129852708814858
+COCONUT_SUBMIT = 952278583487905792
+COCONUT_SPAM = 866129852708814858
+LEADERBOARD_CHANNEL = 952278535467331665
+BOT_SPAM_CHANNELS = [COCONUT_SPAM,KARMA_TEST_CHANNEL]
+RANK_SUBMIT_CHANNELS = [COCONUT_SUBMIT,KARMA_TEST_CHANNEL]
+
+
 players = {}
 
 #give proper intents for bot to detect members
@@ -47,10 +55,10 @@ def setPlayers(mode):
     # Now iterate the games
     for game_id, game in games:
         # Setup lists so we can zip them back up at the end
-        trueskills = []    
+        trueskills = []
         player_ids = []
-        game_ids = []  
-        mus = []    
+        game_ids = []
+        mus = []
         sigmas = []
         post_mus = []
         post_sigmas = []
@@ -62,7 +70,7 @@ def setPlayers(mode):
             # Now push the player_id onto the player_ids array for zipping up
             player_ids.append(row['player_id'])
             # Get the players last game, hence tail(1)
-            filter = (df_truerank['game_id'] < game_id) & (df_truerank['player_id'] == row['player_id'])                            
+            filter = (df_truerank['game_id'] < game_id) & (df_truerank['player_id'] == row['player_id'])
             df_player = df_truerank[filter].tail(1)
             # If there isnt a game then just use the TrueSkill defaults
             if (len(df_player) == 0):
@@ -88,15 +96,15 @@ def setPlayers(mode):
             # Loop the TrueSkill results and get the new mu and sigma for each player
             for result in results:
                 post_mus.append(round(result[0].mu, 2))
-                post_sigmas.append(round(result[0].sigma, 2))        
+                post_sigmas.append(round(result[0].sigma, 2))
         except:
-            # If the TrusSkill rate method blows up, just use the previous 
+            # If the TrusSkill rate method blows up, just use the previous
             # games mus and sigmas
             post_mus = mus
             post_sigmas = sigmas
         # Change the positions back to non 0 based
         positions = [x + 1 for x in ranks]
-        # Now zip together all our lists 
+        # Now zip together all our lists
         data = list(zip(game_ids, player_ids, positions, mus, sigmas, post_mus, post_sigmas))
         # Create a temp DataFrame the same as df_truerank and add data to the DataFrame
         df_temp = pd.DataFrame(data, columns=df_truerank_columns)
@@ -174,7 +182,7 @@ def ratePlayers(currentPlayers, mode):
 #return the latest game number
 def getGameID(mode):
     #open the file
-    with open(f'ranking{mode}.csv','r') as file: 
+    with open(f'ranking{mode}.csv','r') as file:
         data = file.readlines()
         print(f'len data: {len(data)}')
         #return current game number as 0 if data is empty
@@ -283,10 +291,10 @@ def getMembers(ctx):
     return members
 
 #submit new lobby results to spreadsheet
-@bot.command()
+@bot.command(brief="Submit ranked results", usage="<@user1> <placement #> <@user2> <placement #> <@user3> <placement #> ... <@userN> <placement #> ",help='test')
 async def submit(ctx, *message):
     #check that we're in the right channel
-    if ctx.channel.id == 952278583487905792:
+    if ctx.channel.id in RANK_SUBMIT_CHANNELS:
         #get name of user submitting
         author=ctx.author.name
         #get game mode
@@ -363,7 +371,7 @@ async def submit(ctx, *message):
             #update players
             setPlayers(mode)
             await ctx.channel.send(f'Error submitting {mode} gameID {gameID}!')
-            return   
+            return
         else:
             #get role to add/remove
             role0 = discord.utils.get(ctx.author.guild.roles, name = "Master") #3000
@@ -390,7 +398,7 @@ async def submit(ctx, *message):
                         if role in members.get(int(player[:-1])).roles:
                             print(f'removed {role.name} from {str(members.get(int(player[:-1])))}')
                             await members.get(int(player[:-1])).remove_roles(role)
-                #add appropriate ranked role            
+                #add appropriate ranked role
                 else:
                     if unranked in members.get(int(player[:-1])).roles:
                         print(f'removed Unranked from {str(members.get(int(player[:-1])))}')
@@ -466,7 +474,7 @@ async def replaceAll(ctx):
         # reading the CSV file
         with open("ranking.csv", "r") as text:
             #combines file into a string
-            text = ''.join([i for i in text]) 
+            text = ''.join([i for i in text])
             # search and replace the contents
             for member in ctx.guild.members:
                 if str(member).strip() in text:
@@ -486,7 +494,7 @@ async def replace(ctx, nameOld, nameNew):
         # reading the CSV file
         with open("ranking.csv", "r") as text:
             #combines file into a string
-            text = ''.join([i for i in text]) 
+            text = ''.join([i for i in text])
             # search and replace the contents
             text = text.replace(nameOld, nameNew)
             # write to output file
@@ -515,9 +523,10 @@ async def deleteGame(ctx, mode, gameID):
     return
 
 #check what rank a specified user is
-@bot.command()
+@bot.command(brief = "Look up a user's rank and rating", usage = '<@username>')
 async def search(ctx, message):
-    if ctx.channel.id == 946348914259423243:
+    # if ctx.channel.id == 946348914259423243:
+    if ctx.channel.id in BOT_SPAM_CHANNELS:
         #get list of members
         members = getMembers(ctx)
         print(f'message: {message}')
@@ -552,7 +561,7 @@ async def search(ctx, message):
             #inform user if no match was found
             if not found:
                 await ctx.channel.send(f'Could not find {members.get(int(username[:-1])).display_name} in the {mode} rankings')
-            # with open(f'ranking{mode}.csv','r') as file: 
+            # with open(f'ranking{mode}.csv','r') as file:
             #     data = file.readlines()
             #     #return current game number as 0 if data is empty
             #     if len(data)==1:
@@ -565,9 +574,9 @@ async def search(ctx, message):
     return
 
 #check what rank a specified user is and give extended stats
-@bot.command()
+@bot.command(brief="Look up a user's ranked stats ")
 async def searchstats(ctx, message):
-    if ctx.channel.id == 946348914259423243:
+    if ctx.channel.id in BOT_SPAM_CHANNELS:
         #get name of specified user
         members = getMembers(ctx)
         print(f'message: {message}')
@@ -618,7 +627,7 @@ async def editLeaderboard(ctx, mode):
     #get list members
     members = getMembers(ctx)
     #get leaderboard channel
-    channel = ctx.guild.get_channel(952278535467331665)
+    channel = ctx.guild.get_channel(LEADERBOARD_CHANNEL)
     #get the relevant message ids
     _ffa_id = 953115733657800704
     _1v1_id = 953115734463098900
