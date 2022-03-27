@@ -536,7 +536,7 @@ async def deleteGame(ctx, mode, gameID):
 
 #check what rank a specified user is
 @bot.command(brief = "Look up a user's rank and rating", usage = '<@username>')
-async def search(ctx, message):
+async def search(ctx, message=''):
     # if ctx.channel.id == 946348914259423243:
     if ctx.channel.id in BOT_SPAM_CHANNELS:
         #get list of members
@@ -544,7 +544,9 @@ async def search(ctx, message):
         print(f'message: {message}')
         print(f'len message: {len(message[3:-1])}')
         #for some reason when certain members use the search command, their message differs in length
-        if len(message[3:-1]) == 18:
+        if len(message[3:-1]) == 0:
+            username = f'{ctx.author.id}#' #default to author if no mention
+        elif len(message[3:-1]) == 18:
             username = f'{message[3:-1]}#'
         else:
             username = f'{message[2:-1]}#'
@@ -587,14 +589,16 @@ async def search(ctx, message):
 
 #check what rank a specified user is and give extended stats
 @bot.command(brief="Look up a user's ranked stats ",usage = '<@username>')
-async def searchstats(ctx, message):
+async def searchstats(ctx, message=''):
     if ctx.channel.id in BOT_SPAM_CHANNELS:
         #get name of specified user
         members = getMembers(ctx)
         print(f'message: {message}')
         print(f'len message: {len(message[3:-1])}')
         #when certain members use the search command, their message differs in length
-        if len(message[3:-1]) == 18:
+        if len(message[3:-1]) == 0:
+            username = f'{ctx.author.id}#' #default to author if no mention
+        elif len(message[3:-1]) == 18:
             username = f'{message[3:-1]}#'
         else:
             username = f'{message[2:-1]}#'
