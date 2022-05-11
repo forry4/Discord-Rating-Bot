@@ -2,16 +2,14 @@
 import os
 import discord
 import math
-import csv
 import pandas as pd
 from datetime import date
-from datetime import datetime
 from timeit import default_timer as timer
 from csv import writer
 from dotenv import load_dotenv
 from discord.ext import commands
 from IPython.display import display
-from trueskill import Rating, rate, rate_1vs1
+from trueskill import Rating, rate
 
 #load in the token secret
 load_dotenv()
