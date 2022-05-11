@@ -12,6 +12,9 @@ Leaderboards for different game types are updated automatically after each game 
 Automatic Role Detection:
 Roles for your skill rating are automatically assigned after game submissions given a minimum number of games for placements have been completed. The Ranked role can also be self-assigned by users by reacting to the pinned message in the #role-select channel
 
+Ranked Quality Assurance:
+Ranked matches only count if two players are within a small enough elo range to ensure the system is not abused by strong players always winning against much weaker ones.
+
 Fast Elo Calculation:
 Upon sartup, the code will run through the full csv of every game id to sequentially calculate mu and sigma for every player after every game. Additional csv files with mu and sigma data are stored for fast calculation post game submission.
 
