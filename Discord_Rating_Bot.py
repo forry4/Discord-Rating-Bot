@@ -1,4 +1,4 @@
-# SAP_Bot.py
+# Discord_Rating_Bot.py
 import os
 import discord
 import math
